@@ -1,72 +1,81 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { Icon, Logo } from '@/components/Icons';
+import { useToast } from '@/components/Toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
+  const toast = useToast();
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
     if (!email || busy) return;
     setBusy(true);
-    setMessage('');
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
 
     if (error) {
-      setMessage(error.message);
+      toast.error(error.message);
       return;
     }
+    toast.ok('С возвращением!');
     router.push('/dashboard');
   }
 
   return (
-    <div className="min-h-screen bg-[#EAEBF2] text-[#171A3A] flex items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full bg-white rounded-3xl border border-[#DCDFEC] shadow-xl p-8 space-y-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-bg px-4 py-10">
+      <div className="grid-bg pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className="glow left-1/2 top-[-20%] size-[420px] -translate-x-1/2 bg-accent/20" aria-hidden="true" />
 
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#171A3A] text-white font-black text-xl mb-2 shadow-md">
-            S
-          </Link>
-          <h1 className="text-2xl font-black font-['Unbounded',sans-serif]">Вход в SUBSCOPE</h1>
-          <p className="text-xs text-[#4B5079]">Введите вашу почту для доступа к управлению подписками</p>
-        </div>
+      <Link href="/" className="relative flex items-center gap-2.5" aria-label="SUBSCOPE — на главную">
+        <Logo size={38} />
+        <span className="font-display text-sm font-black tracking-[0.16em] text-ink">SUBSCOPE</span>
+      </Link>
 
-        {message && (
-          <div className="bg-[#FFF0D9] border border-[#F0C896] text-[#9A5B00] px-4 py-3 rounded-2xl text-xs font-semibold">
-            {message}
-          </div>
-        )}
+      <div className="pop relative mt-6 w-full max-w-md rounded-3xl border border-line bg-white p-7 shadow-lift sm:p-9">
+        <h1 className="font-display text-2xl font-black text-ink">Вход в кабинет</h1>
+        <p className="mt-1.5 text-xs leading-relaxed text-body">
+          Аккаунт хранит ваши подписки и расчёты. Можно продолжать и без входа — данные останутся в
+          этом браузере.
+        </p>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="mt-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#4B5079] mb-1">Электронная почта</label>
+            <label className="mb-1 block text-xs font-bold text-body" htmlFor="login-email">
+              Электронная почта
+            </label>
             <input
+              id="login-email"
               type="email"
-              placeholder="user@subscope.app"
+              autoComplete="email"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
+              className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#4B5079] mb-1">Пароль</label>
+            <label className="mb-1 block text-xs font-bold text-body" htmlFor="login-pass">
+              Пароль
+            </label>
             <input
+              id="login-pass"
               type="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
+              className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
               required
             />
           </div>
@@ -74,25 +83,32 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full py-3.5 rounded-2xl bg-[#FF5A1F] text-[#171A3A] text-sm font-bold hover:bg-[#E54D15] transition shadow-md disabled:opacity-60"
+            className="press w-full rounded-2xl bg-accent py-3.5 text-sm font-bold text-white shadow-lift transition hover:bg-accent-deep disabled:opacity-60"
           >
-            {busy ? 'Проверяем...' : 'Войти в кабинет'}
+            {busy ? 'Проверяем…' : 'Войти в кабинет'}
           </button>
         </form>
 
-        <div className="text-center space-y-2 pt-2">
-          <p className="text-xs text-[#6E7398]">
+        <div className="mt-6 space-y-2 text-center">
+          <p className="text-xs text-body">
             Нет аккаунта?{' '}
-            <Link href="/signup" className="font-bold text-[#FF5A1F] hover:underline">
+            <Link href="/signup" className="font-bold text-accent hover:underline">
               Зарегистрироваться
             </Link>
           </p>
-          <Link href="/" className="text-xs font-bold text-[#6E7398] hover:text-[#FF5A1F] transition">
-            ← Вернуться на главную
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-mute transition hover:text-ink"
+          >
+            <Icon name="chevron-left" size={13} /> Продолжить без входа
           </Link>
         </div>
-
       </div>
+
+      <p className="relative mt-6 flex items-center gap-2 text-[11px] text-mute">
+        <Icon name="shield" size={13} className="text-save" />
+        Пароли проверяет Supabase Auth, мы их не храним
+      </p>
     </div>
   );
 }

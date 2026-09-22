@@ -1,65 +1,155 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import {
+  CATALOG,
+  CATEGORIES,
+  PERIODS,
+  STATUS_LABEL,
+  USAGE,
+  USAGE_ORDER,
+  catalogByName,
+  categoryColor,
+  categoryLabel,
+  hasFeature,
+} from '@/lib/config';
+import {
+  SCENARIOS,
+  byCategory,
+  calcSub,
+  computeRecs,
+  fmt,
+  forecast,
+  fmtDate,
+  isActive,
+  isoDate,
+  monthlySeries,
+  nextPaymentDateForDay,
+  periodLabel,
+  recMeta,
+  relDays,
+  scenarioSavings,
+  totals,
+  upcoming,
+  usageOf,
+  type Sub,
+} from '@/lib/finance';
+import { Icon, Logo, type IconName } from '@/components/Icons';
+import { CountUp } from '@/components/CountUp';
+import { DonutChart, ForecastChart, SeriesChart } from '@/components/Charts';
+import { useAppStore } from '@/components/AppStore';
+import { useToast } from '@/components/Toast';
 
-interface Subscription {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  currency: string;
-  period: 'week' | 'month' | 'year';
-  status: 'active' | 'paused' | 'cancelled';
-  next_payment?: string | null;
-}
+type Tab = 'overview' | 'subs' | 'analytics' | 'savings' | 'calendar';
 
-function toMonthly(price: number, period: Subscription['period']) {
-  if (period === 'year') return price / 12;
-  if (period === 'week') return price * 4.33;
-  return price;
-}
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: 'overview', label: 'Обзор', icon: 'home' },
+  { id: 'subs', label: 'Подписки', icon: 'list' },
+  { id: 'analytics', label: 'Аналитика', icon: 'chart' },
+  { id: 'savings', label: 'Экономия', icon: 'savings' },
+  { id: 'calendar', label: 'Календарь', icon: 'calendar' },
+];
 
-function paymentDay(sub: Subscription) {
-  return sub.next_payment ? new Date(sub.next_payment).getUTCDate() : 1;
-}
-
-// Следующая дата выбранного дня месяца (с учётом коротких месяцев)
-function nextPaymentDate(day: number) {
-  const now = new Date();
-  const build = (year: number, month: number) => {
-    const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    return new Date(Date.UTC(year, month, Math.min(day, last), 12));
-  };
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const date = build(now.getFullYear(), now.getMonth());
-  return (date.getTime() < today ? build(now.getFullYear(), now.getMonth() + 1) : date)
-    .toISOString()
-    .split('T')[0];
-}
-
-const PERIOD_LABEL: Record<Subscription['period'], string> = {
-  week: 'Раз в неделю',
-  month: 'Раз в месяц',
-  year: 'Раз в год',
+const USAGE_TONE: Record<string, string> = {
+  low: 'bg-warn-bg text-warn',
+  medium: 'bg-bg text-body',
+  high: 'bg-save-bg text-save',
 };
 
-export default function DashboardFullPage() {
-  const [subs, setSubs] = useState<Subscription[]>([]);
+const REC_TONE: Record<string, string> = {
+  warn: 'bg-warn-bg text-warn',
+  save: 'bg-save-bg text-save',
+  info: 'bg-accent-soft text-accent-ink',
+};
+
+const REC_ICON: Record<string, IconName> = {
+  unused: 'clock',
+  tariff: 'card',
+  duplicate: 'layers',
+  annual: 'trend-down',
+  share: 'chart',
+};
+
+function StatCard({ label, value, hint, tone = 'default' }: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'default' | 'save';
+}) {
+  return (
+    <div
+      className={`rounded-3xl border p-5 shadow-card sm:p-6 ${
+        tone === 'save' ? 'border-save-line bg-save-bg' : 'border-line bg-white'
+      }`}
+    >
+      <p
+        className={`text-[11px] font-black uppercase tracking-wider ${
+          tone === 'save' ? 'text-save/80' : 'text-mute'
+        }`}
+      >
+        {label}
+      </p>
+      <p
+        className={`num mt-2 font-display text-2xl font-black sm:text-3xl ${
+          tone === 'save' ? 'text-save' : 'text-ink'
+        }`}
+      >
+        {value}
+      </p>
+      {hint && (
+        <p className={`mt-1.5 text-[11px] ${tone === 'save' ? 'text-save/80' : 'text-mute'}`}>
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Locked({ flag, children }: { flag: 'pro' | 'pro_plus'; children: ReactNode }) {
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-line bg-white shadow-card">
+      <div className="locked-body p-6 sm:p-8">{children}</div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/60 p-6 text-center backdrop-blur-[1px]">
+        <span className="grid size-11 place-items-center rounded-2xl bg-ink text-white">
+          <Icon name="lock" size={20} />
+        </span>
+        <p className="max-w-xs text-sm font-bold text-ink">
+          Доступно на тарифе {flag === 'pro' ? 'PRO' : 'PRO+'}
+        </p>
+        <p className="max-w-xs text-xs text-body">
+          Откройте расширенную аналитику, прогноз и сценарии экономии.
+        </p>
+        <Link
+          href="/pricing"
+          className="press mt-1 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white transition hover:bg-accent-deep"
+        >
+          Посмотреть тарифы
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const toast = useToast();
+  const { plan, limit, money, ready } = useAppStore();
+
+  const [subs, setSubs] = useState<Sub[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [activeTab, setActiveTab] = useState<'subs' | 'calendar' | 'recs'>('subs');
+  const [tab, setTab] = useState<Tab>('overview');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-
+  const [modalOpen, setModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Сервисы');
   const [price, setPrice] = useState('');
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
-  const [paymentDayInput, setPaymentDayInput] = useState('15');
+  const [day, setDay] = useState('15');
+  const [usage, setUsage] = useState<'low' | 'medium' | 'high'>('medium');
+  const [saving, setSaving] = useState(false);
 
   async function fetchSubs() {
     setLoading(true);
@@ -69,64 +159,101 @@ export default function DashboardFullPage() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      setNotice('Не удалось загрузить подписки: ' + error.message);
+      toast.error(`Не удалось загрузить подписки: ${error.message}`);
     } else if (data) {
-      setSubs(data as Subscription[]);
+      setSubs(data as Sub[]);
     }
     setLoading(false);
   }
 
   useEffect(() => {
     fetchSubs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleAddSub(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name || !price) return;
+  const activeSubs = useMemo(() => subs.filter(isActive), [subs]);
+  const sum = useMemo(() => totals(subs), [subs]);
+  const recs = useMemo(() => computeRecs(subs), [subs]);
+  const slices = useMemo(() => byCategory(activeSubs), [activeSubs]);
+  const donutSlices = useMemo(
+    () => slices.map((s) => ({ label: s.label, color: s.color, value: s.amount })),
+    [slices],
+  );
+  const series = useMemo(() => monthlySeries(subs), [subs]);
+  const next30 = useMemo(() => upcoming(subs, 30), [subs]);
+  const fc = useMemo(
+    () => forecast(sum.monthly, recs.saving),
+    [sum.monthly, recs.saving],
+  );
 
-    const day = Math.min(Math.max(parseInt(paymentDayInput) || 1, 1), 31);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return subs.filter((s) => {
+      const okSearch =
+        !q ||
+        String(s.name).toLowerCase().includes(q) ||
+        String(s.category || '').toLowerCase().includes(q);
+      const okStatus = statusFilter === 'all' || s.status === statusFilter;
+      return okSearch && okStatus;
+    });
+  }, [subs, search, statusFilter]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const value = parseFloat(price);
+    if (!name.trim() || !Number.isFinite(value) || value <= 0) {
+      toast.warn('Укажите название и цену больше нуля');
+      return;
+    }
+    if (activeSubs.length >= limit) {
+      toast.warn(`На тарифе ${plan.toUpperCase()} лимит ${limit} активных подписок — откройте PRO`);
+      return;
+    }
+    setSaving(true);
     const { error } = await supabase.from('subscriptions').insert([
       {
-        name,
+        name: name.trim(),
         category,
-        price: parseFloat(price),
+        price: value,
         currency: 'RUB',
         period,
         status: 'active',
-        next_payment: nextPaymentDate(day),
+        usage,
+        next_payment: nextPaymentDateForDay(parseInt(day, 10) || 15),
       },
     ]);
-
+    setSaving(false);
     if (error) {
-      setNotice('Ошибка при добавлении: ' + error.message);
+      toast.error(`База не приняла запись: ${error.message}`);
       return;
     }
+    toast.ok(`Подписка «${name.trim()}» добавлена`);
     setName('');
     setPrice('');
-    setNotice('');
-    setIsModalOpen(false);
+    setModalOpen(false);
     fetchSubs();
   }
 
-  async function toggleStatus(sub: Subscription) {
-    const newStatus = sub.status === 'active' ? 'paused' : 'active';
+  async function patchSub(id: string, patch: Partial<Sub>, okText: string) {
     const { data, error } = await supabase
       .from('subscriptions')
-      .update({ status: newStatus })
-      .eq('id', sub.id)
+      .update(patch)
+      .eq('id', id)
       .select();
 
     if (error) {
-      setNotice('Ошибка при смене статуса: ' + error.message);
-    } else if (!data || data.length === 0) {
-      setNotice('Статус не сохранён: база не разрешает UPDATE для анонимных пользователей (RLS).');
-    } else {
-      setNotice('');
-      fetchSubs();
+      toast.error(`База не приняла изменение: ${error.message}`);
+      return;
     }
+    if (!data || data.length === 0) {
+      toast.warn('База не разрешает UPDATE для анонимных пользователей (RLS). Выполните SQL-политики из инструкции.');
+      return;
+    }
+    toast.ok(okText);
+    fetchSubs();
   }
 
-  async function handleDelete(id: string) {
+  async function removeSub(id: string, label: string) {
     const { data, error } = await supabase
       .from('subscriptions')
       .delete()
@@ -134,457 +261,877 @@ export default function DashboardFullPage() {
       .select();
 
     if (error) {
-      setNotice('Ошибка при удалении: ' + error.message);
-    } else if (!data || data.length === 0) {
-      setNotice('Запись не удалена: база не разрешает DELETE для анонимных пользователей (RLS).');
-    } else {
-      setNotice('');
-      fetchSubs();
+      toast.error(`База не приняла удаление: ${error.message}`);
+      return;
     }
+    if (!data || data.length === 0) {
+      toast.warn('База не разрешает DELETE для анонимных пользователей (RLS). Выполните SQL-политики из инструкции.');
+      return;
+    }
+    toast.ok(`Подписка «${label}» удалена`);
+    fetchSubs();
   }
 
-  const activeSubs = useMemo(() => subs.filter(s => s.status === 'active'), [subs]);
+  function cycleUsage(sub: Sub) {
+    const order = USAGE_ORDER as unknown as string[];
+    const next = order[(order.indexOf(usageOf(sub)) + 1) % order.length];
+    patchSub(sub.id, { usage: next }, `«${sub.name}»: использование — ${USAGE[next].label.toLowerCase()}`);
+  }
 
-  const totalMonthly = activeSubs.reduce((acc, sub) => acc + toMonthly(sub.price, sub.period), 0);
-  const totalYearly = totalMonthly * 12;
-  const annualPlanSavings = Math.round(totalMonthly * 12 * 0.2);
+  function pickFromCatalog(id: string) {
+    const item = CATALOG.find((c) => c.id === id);
+    if (!item) return;
+    setName(item.name);
+    setPrice(String(item.price));
+    setCategory(categoryLabel(item.cat));
+  }
 
-  const categoryStats = useMemo(() => {
-    const map: Record<string, number> = {};
-    activeSubs.forEach(sub => {
-      const cat = sub.category || 'Другое';
-      map[cat] = (map[cat] || 0) + toMonthly(sub.price, sub.period);
-    });
-    return Object.entries(map)
-      .map(([cat, amount]) => ({
-        category: cat,
-        amount: Math.round(amount),
-        percent: totalMonthly > 0 ? Math.round((amount / totalMonthly) * 100) : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [activeSubs, totalMonthly]);
-
-  // Категории, где активно больше одного сервиса — кандидаты на дубли
-  const duplicateCategories = categoryStats.filter(stat => {
-    const count = activeSubs.filter(s => (s.category || 'Другое') === stat.category).length;
-    return count > 1;
-  });
-
-  const monthlyOnlyTotal = activeSubs
-    .filter(s => s.period === 'month')
-    .reduce((acc, s) => acc + s.price, 0);
-
-  const calendarDays = useMemo(() => {
-    const map: Record<number, Subscription[]> = {};
-    activeSubs.forEach(sub => {
-      const day = paymentDay(sub);
-      (map[day] ||= []).push(sub);
-    });
-    return Object.entries(map)
-      .map(([day, items]) => ({
-        day: Number(day),
-        items,
-        total: items.reduce((acc, s) => acc + toMonthly(s.price, s.period), 0),
-      }))
-      .sort((a, b) => a.day - b.day);
-  }, [activeSubs]);
-
-  const filteredSubs = subs.filter(sub => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      sub.name.toLowerCase().includes(q) || (sub.category || '').toLowerCase().includes(q);
-    const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const monthTotal30 = next30.reduce((a, u) => a + u.amount, 0);
 
   return (
-    <div className="min-h-screen bg-[#EAEBF2] text-[#171A3A] p-4 sm:p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-bg pb-24 lg:pb-10">
+      {/* шапка */}
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="SUBSCOPE — на главную">
+            <Logo size={32} />
+            <span className="font-display text-sm font-black tracking-[0.16em] text-ink">
+              SUBSCOPE
+            </span>
+          </Link>
+          <span className="rounded-full bg-ink px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-white">
+            {plan === 'free' ? 'FREE' : plan === 'pro' ? 'PRO' : 'PRO+'}
+          </span>
 
-        {/* Шапка кабинета */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-[#DCDFEC] shadow-sm">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Link href="/" className="text-xs font-bold text-[#6E7398] hover:text-[#FF5A1F] transition">
-                ← На главную страницу
-              </Link>
-              <span className="text-xs text-[#DCDFEC]">/</span>
-              <span className="text-xs font-bold text-[#FF5A1F]">Личный кабинет</span>
-              <span className="text-xs text-[#DCDFEC]">/</span>
-              <Link href="/settings" className="text-xs font-bold text-[#6E7398] hover:text-[#FF5A1F] transition">
-                Настройки
-              </Link>
+          <nav className="ml-4 hidden items-center gap-1 lg:flex">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`press flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-bold transition ${
+                  tab === t.id ? 'bg-ink text-white shadow-sm' : 'text-body hover:bg-white'
+                }`}
+              >
+                <Icon name={t.icon} size={15} />
+                {t.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/settings"
+              className="press grid size-10 place-items-center rounded-xl border border-line bg-white text-ink transition hover:border-ink/30"
+              title="Настройки"
+              aria-label="Настройки"
+            >
+              <Icon name="settings" size={18} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="press hidden items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-[13px] font-bold text-white shadow-lift transition hover:bg-accent-deep sm:flex"
+            >
+              <Icon name="plus" size={16} /> Добавить
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+        {/* ОБЗОР */}
+        {tab === 'overview' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="font-display text-2xl font-black text-ink sm:text-3xl">
+                  Обзор расходов
+                </h1>
+                <p className="mt-1 text-sm text-body">
+                  {activeSubs.length} активных · всего записей {subs.length}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="press flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-white shadow-lift transition hover:bg-accent-deep sm:hidden"
+              >
+                <Icon name="plus" size={16} /> Добавить
+              </button>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black font-['Unbounded',sans-serif]">Управление подписками</h1>
-            <p className="text-sm text-[#4B5079] mt-1">Аналитика трат, календарь списаний и сценарии экономии</p>
-          </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-[#FF5A1F] hover:bg-[#E54D15] text-[#171A3A] px-6 py-3.5 rounded-full text-sm font-bold transition shadow-lg shadow-[#FF5A1F]/20 active:scale-95 whitespace-nowrap"
-          >
-            + Добавить подписку
-          </button>
-        </div>
 
-        {notice && (
-          <div className="bg-[#FFF0D9] border border-[#F0C896] text-[#9A5B00] px-6 py-4 rounded-2xl text-xs sm:text-sm font-semibold flex justify-between gap-4">
-            <span>{notice}</span>
-            <button onClick={() => setNotice('')} className="shrink-0 font-bold">✕</button>
-          </div>
-        )}
+            {loading ? (
+              <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
+                Загружаем данные из Supabase…
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatCard
+                    label="Расходы / мес"
+                    value={ready ? money(sum.monthly) : fmt(sum.monthly)}
+                    hint={`прогноз за год ~${fmt(sum.yearly)}`}
+                  />
+                  <StatCard
+                    label="За 5 лет"
+                    value={fmt(sum.fiveYears)}
+                    hint="если ничего не менять"
+                  />
+                  <StatCard
+                    label="Активные сервисы"
+                    value={String(activeSubs.length)}
+                    hint={`следующее списание ${sum.next ? fmtDate(isoDate(sum.next.date)) : '—'}`}
+                  />
+                  <StatCard
+                    label="Можно сохранить"
+                    value={`${fmt(recs.saving)} / мес`}
+                    hint={`${fmt(recs.saving * 12)} за год по рекомендациям`}
+                    tone="save"
+                  />
+                </div>
 
-        {/* Карточки аналитики */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCDFEC] shadow-sm space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#6E7398]">Расходы за месяц</p>
-            <p className="text-3xl sm:text-4xl font-black font-['Unbounded',sans-serif] text-[#171A3A]">
-              {loading ? '...' : `${Math.round(totalMonthly)} ₽`}
-            </p>
-            <p className="text-xs text-[#6E7398]">Прогноз за год: ~{Math.round(totalYearly)} ₽</p>
-          </div>
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCDFEC] shadow-sm space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#6E7398]">Активные сервисы</p>
-            <p className="text-3xl sm:text-4xl font-black font-['Unbounded',sans-serif] text-[#171A3A]">
-              {loading ? '...' : activeSubs.length}
-            </p>
-            <p className="text-xs text-[#6E7398]">Всего записей в базе: {subs.length}</p>
-          </div>
-          <div className="bg-[#DDF3E9] p-6 sm:p-8 rounded-3xl border border-[#A9DCC5] shadow-sm space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0B7F58]">Возможная экономия</p>
-            <p className="text-3xl sm:text-4xl font-black font-['Unbounded',sans-serif] text-[#0B7F58]">
-              {loading ? '...' : `${annualPlanSavings} ₽`}/год
-            </p>
-            <p className="text-xs text-[#0B7F58]/80">При переходе на годовые тарифы</p>
-          </div>
-        </div>
+                <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-display text-lg font-bold text-ink">
+                        Ближайшие списания
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setTab('calendar')}
+                        className="press text-xs font-bold text-accent hover:underline"
+                      >
+                        весь календарь
+                      </button>
+                    </div>
+                    {next30.length === 0 ? (
+                      <p className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-xs text-mute">
+                        Ближайших списаний нет — добавьте подписки.
+                      </p>
+                    ) : (
+                      <ul className="mt-4 space-y-2">
+                        {next30.slice(0, 4).map((u) => (
+                          <li
+                            key={`${u.sub.id}-${u.date}`}
+                            className="flex items-center gap-3 rounded-2xl bg-bg px-4 py-3"
+                          >
+                            <span
+                              className="grid size-9 shrink-0 place-items-center rounded-xl font-mono text-xs font-bold text-white"
+                              style={{ background: categoryColor(String(u.sub.category)) }}
+                            >
+                              {String(u.sub.name)[0]}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-bold text-ink">
+                                {u.sub.name}
+                              </span>
+                              <span className="block text-[11px] text-mute">
+                                {fmtDate(isoDate(u.date))} · {relDays(isoDate(u.date))}
+                              </span>
+                            </span>
+                            <span className="num shrink-0 font-mono text-sm font-bold text-ink">
+                              {fmt(u.amount)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="mt-4 rounded-2xl bg-bg px-4 py-3 text-xs text-body">
+                      Итого будущих списаний за 30 дней:{' '}
+                      <span className="num font-bold text-ink">{fmt(monthTotal30)}</span>
+                    </p>
+                  </section>
 
-        {/* Переключатель вкладок */}
-        <div className="flex flex-wrap bg-white p-1.5 rounded-2xl border border-[#DCDFEC] max-w-xl shadow-sm">
-          <button
-            onClick={() => setActiveTab('subs')}
-            className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition ${activeTab === 'subs' ? 'bg-[#171A3A] text-white shadow-md' : 'text-[#4B5079] hover:text-[#171A3A]'}`}
-          >
-            📋 Ваши подписки
-          </button>
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition ${activeTab === 'calendar' ? 'bg-[#171A3A] text-white shadow-md' : 'text-[#4B5079] hover:text-[#171A3A]'}`}
-          >
-            📅 Календарь
-          </button>
-          <button
-            onClick={() => setActiveTab('recs')}
-            className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition ${activeTab === 'recs' ? 'bg-[#171A3A] text-white shadow-md' : 'text-[#4B5079] hover:text-[#171A3A]'}`}
-          >
-            💡 Сценарии экономии
-          </button>
-        </div>
-
-        {/* ВКЛАДКА 1: СПИСОК И АНАЛИТИКА */}
-        {activeTab === 'subs' && (
-          <div className="space-y-8">
-            {!loading && categoryStats.length > 0 && (
-              <div className="bg-white rounded-3xl border border-[#DCDFEC] shadow-sm p-6 sm:p-8 space-y-6">
-                <h2 className="text-xl font-bold font-['Unbounded',sans-serif]">Структура расходов по категориям</h2>
-                <div className="space-y-4">
-                  {categoryStats.map((stat) => (
-                    <div key={stat.category} className="space-y-1.5">
-                      <div className="flex justify-between text-xs sm:text-sm font-semibold">
-                        <span className="text-[#171A3A]">{stat.category}</span>
-                        <span className="text-[#6E7398]">{stat.amount} ₽ / мес ({stat.percent}%)</span>
-                      </div>
-                      <div className="w-full bg-[#EAEBF2] h-3 rounded-full overflow-hidden">
-                        <div
-                          className="bg-[#171A3A] h-full rounded-full transition-all duration-500"
-                          style={{ width: `${stat.percent}%` }}
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <h2 className="font-display text-lg font-bold text-ink">Структура расходов</h2>
+                    {slices.length === 0 ? (
+                      <p className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-xs text-mute">
+                        Пока нечего показать.
+                      </p>
+                    ) : (
+                      <div className="mt-5">
+                        <DonutChart
+                          slices={donutSlices}
+                          centerValue={fmt(sum.monthly)}
+                          centerLabel="в месяц"
                         />
                       </div>
+                    )}
+                  </section>
+                </div>
+
+                {recs.list.length > 0 && (
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-display text-lg font-bold text-ink">
+                        Что можно оптимизировать
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setTab('savings')}
+                        className="press text-xs font-bold text-accent hover:underline"
+                      >
+                        все рекомендации
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white rounded-3xl border border-[#DCDFEC] shadow-sm p-6 sm:p-8 space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-xl font-bold font-['Unbounded',sans-serif]">Список подписок</h2>
-
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    placeholder="Поиск по названию..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="px-4 py-2.5 rounded-xl border border-[#DCDFEC] text-xs bg-[#EAEBF2] focus:outline-none focus:border-[#FF5A1F] w-full sm:w-60"
-                  />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2.5 rounded-xl border border-[#DCDFEC] text-xs bg-[#EAEBF2] focus:outline-none focus:border-[#FF5A1F]"
-                  >
-                    <option value="all">Все статусы</option>
-                    <option value="active">Активные</option>
-                    <option value="paused">На паузе</option>
-                  </select>
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="text-center py-16 text-[#6E7398] font-medium">Загрузка данных из Supabase...</div>
-              ) : filteredSubs.length === 0 ? (
-                <div className="text-center py-16 space-y-4">
-                  <p className="text-[#4B5079]">
-                    {subs.length === 0 ? 'В базе пока нет подписок.' : 'Подписок по вашему запросу не найдено.'}
-                  </p>
-                  {subs.length > 0 && (
-                    <button
-                      onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
-                      className="text-xs font-bold text-[#FF5A1F] hover:underline"
-                    >
-                      Сбросить фильтры
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredSubs.map((sub) => (
-                    <div key={sub.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-[#EAEBF2]/60 border border-[#DCDFEC] hover:border-[#171A3A] transition gap-4">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-[#171A3A] text-white font-bold flex items-center justify-center text-base shrink-0 shadow-sm">
-                          {sub.name[0]?.toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-[#171A3A] truncate text-base">{sub.name}</p>
-                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase ${sub.status === 'active' ? 'bg-[#DDF3E9] text-[#0B7F58]' : 'bg-[#FFF0D9] text-[#9A5B00]'}`}>
-                              {sub.status === 'active' ? 'Активна' : 'На паузе'}
+                    <ul className="mt-4 grid gap-2.5 md:grid-cols-3">
+                      {recs.list.slice(0, 3).map((r) => {
+                        const meta = recMeta(r.type);
+                        return (
+                          <li key={r.key} className="rounded-2xl border border-line p-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${REC_TONE[meta.tone]}`}
+                            >
+                              <Icon name={REC_ICON[r.type]} size={12} />
+                              {meta.label}
                             </span>
-                          </div>
-                          <p className="text-xs text-[#6E7398] mt-0.5">
-                            Категория: <strong className="text-[#4B5079]">{sub.category || 'Другое'}</strong> • {PERIOD_LABEL[sub.period]} • списание {paymentDay(sub)}-го числа
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-[#DCDFEC]">
-                        <p className="font-black font-['Unbounded',sans-serif] text-[#171A3A] text-lg">
-                          {sub.price} <span className="text-xs font-normal text-[#6E7398]">({sub.currency})</span>
-                        </p>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggleStatus(sub)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${sub.status === 'active' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}
-                            title="Изменить статус"
-                          >
-                            {sub.status === 'active' ? 'На паузу' : 'Возобновить'}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(sub.id)}
-                            className="w-9 h-9 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-xs transition"
-                            title="Удалить подписку"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                            <p className="mt-2.5 text-sm font-bold text-ink">{r.title}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-body">{r.text}</p>
+                            <p className="num mt-2.5 font-mono text-xs font-bold text-save">
+                              экономия {fmt(r.saving)} / мес
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* ВКЛАДКА 2: КАЛЕНДАРЬ */}
-        {activeTab === 'calendar' && (
-          <div className="bg-white rounded-3xl border border-[#DCDFEC] shadow-sm p-6 sm:p-8 space-y-6">
+        {/* ПОДПИСКИ */}
+        {tab === 'subs' && (
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="font-display text-2xl font-black text-ink sm:text-3xl">Подписки</h1>
+                <p className="mt-1 text-sm text-body">
+                  Нажмите на отметку использования, чтобы уточнить частоту
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="relative">
+                  <Icon
+                    name="search"
+                    size={15}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute"
+                  />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Поиск по названию…"
+                    className="w-full rounded-full border border-line bg-white py-2.5 pl-9 pr-4 text-xs font-semibold text-ink outline-none transition focus:border-accent sm:w-56"
+                  />
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  aria-label="Фильтр по статусу"
+                  className="rounded-full border border-line bg-white px-3.5 py-2.5 text-xs font-semibold text-ink outline-none transition focus:border-accent"
+                >
+                  <option value="all">Все статусы</option>
+                  <option value="active">Активные</option>
+                  <option value="paused">На паузе</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
+                Загружаем данные из Supabase…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-line bg-white p-12 text-center">
+                <p className="text-sm font-bold text-ink">Подписок не найдено</p>
+                <p className="mt-1.5 text-xs text-body">
+                  Добавьте первую подписку или сбросьте фильтры поиска.
+                </p>
+                <div className="mt-5 flex justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setStatusFilter('all');
+                    }}
+                    className="press rounded-full border border-line px-4 py-2.5 text-xs font-bold text-ink transition hover:border-ink/30"
+                  >
+                    Сбросить фильтры
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(true)}
+                    className="press rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white transition hover:bg-accent-deep"
+                  >
+                    Добавить подписку
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <ul className="space-y-2.5">
+                {filtered.map((sub) => {
+                  const analysis = calcSub(sub, recs.list);
+                  const active = isActive(sub);
+                  return (
+                    <li
+                      key={sub.id}
+                      className="rounded-3xl border border-line bg-white p-4 shadow-card transition hover:border-ink/25 sm:p-5"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                          <span
+                            className="grid size-11 shrink-0 place-items-center rounded-2xl font-display text-sm font-black text-white"
+                            style={{ background: categoryColor(String(sub.category)) }}
+                          >
+                            {String(sub.name)[0]}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-bold text-ink sm:text-base">
+                                {sub.name}
+                              </p>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                  active ? 'bg-save-bg text-save' : 'bg-warn-bg text-warn'
+                                }`}
+                              >
+                                {STATUS_LABEL[String(sub.status)] || sub.status}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-mute">
+                              {categoryLabel(String(sub.category))} · {periodLabel(sub.period)} ·
+                              списание {fmtDate(sub.next_payment)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => cycleUsage(sub)}
+                            title={USAGE[usageOf(sub)].hint}
+                            className={`press rounded-full px-3 py-1.5 text-[11px] font-bold transition ${USAGE_TONE[usageOf(sub)]}`}
+                          >
+                            {USAGE[usageOf(sub)].label}
+                          </button>
+                          <div className="text-right">
+                            <p className="num font-display text-base font-black text-ink">
+                              {fmt(Number(sub.price))}
+                            </p>
+                            <p className="num text-[10px] text-mute">
+                              ≈ {fmt(analysis.monthly_cost)} / мес
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                patchSub(
+                                  sub.id,
+                                  { status: active ? 'paused' : 'active' },
+                                  active
+                                    ? `«${sub.name}» поставлена на паузу`
+                                    : `«${sub.name}» возобновлена`,
+                                )
+                              }
+                              title={active ? 'Поставить на паузу' : 'Возобновить'}
+                              aria-label={active ? 'Поставить на паузу' : 'Возобновить'}
+                              className={`press grid size-9 place-items-center rounded-xl transition ${
+                                active
+                                  ? 'bg-warn-bg text-warn hover:brightness-95'
+                                  : 'bg-save-bg text-save hover:brightness-95'
+                              }`}
+                            >
+                              <Icon name={active ? 'pause' : 'play'} size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSub(sub.id, String(sub.name))}
+                              title="Удалить подписку"
+                              aria-label="Удалить подписку"
+                              className="press grid size-9 place-items-center rounded-xl bg-danger-bg text-danger transition hover:brightness-95"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* АНАЛИТИКА */}
+        {tab === 'analytics' && (
+          <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold font-['Unbounded',sans-serif]">Календарь плановых списаний</h2>
-              <p className="text-xs text-[#6E7398] mt-1">
-                Дни месяца, в которые сервисы продлеваются автоматически
+              <h1 className="font-display text-2xl font-black text-ink sm:text-3xl">Аналитика</h1>
+              <p className="mt-1 text-sm text-body">
+                Категории, динамика по месяцам и прогноз на год вперёд
               </p>
             </div>
 
-            {calendarDays.length === 0 ? (
-              <p className="text-center py-12 text-[#6E7398] text-sm">
-                Нет активных подписок — добавьте первую, и здесь появится график списаний.
-              </p>
+            {loading ? (
+              <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
+                Загружаем данные из Supabase…
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {calendarDays.map(({ day, items, total }) => (
-                  <div key={day} className="p-5 rounded-2xl bg-[#EAEBF2]/60 border border-[#DCDFEC] space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-sm text-[#171A3A]">📅 {day}-е число</span>
-                      <span className="text-xs font-extrabold text-[#FF5A1F]">~{Math.round(total)} ₽/мес</span>
+              <>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <h2 className="font-display text-lg font-bold text-ink">По категориям</h2>
+                    {slices.length === 0 ? (
+                      <p className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-xs text-mute">
+                        Нет активных подписок.
+                      </p>
+                    ) : (
+                      <div className="mt-5">
+                        <DonutChart
+                          slices={donutSlices}
+                          centerValue={fmt(sum.monthly)}
+                          centerLabel="в месяц"
+                        />
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <h2 className="font-display text-lg font-bold text-ink">Динамика по месяцам</h2>
+                    <div className="mt-5">
+                      <SeriesChart points={series} />
                     </div>
-                    <div className="space-y-1.5 pt-1">
-                      {items.map(s => (
-                        <div key={s.id} className="flex justify-between gap-2 text-xs bg-white p-2.5 rounded-xl border border-[#DCDFEC]">
-                          <span className="font-semibold text-[#171A3A] truncate">{s.name}</span>
-                          <span className="font-bold text-[#4B5079] whitespace-nowrap">{s.price} ₽</span>
-                        </div>
-                      ))}
+                  </section>
+                </div>
+
+                {hasFeature(plan, 'forecast') ? (
+                  <section className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-7">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h2 className="font-display text-lg font-bold text-ink">
+                        Прогноз на 12 месяцев
+                      </h2>
+                      <span className="rounded-full bg-save-bg px-3 py-1.5 text-xs font-bold text-save">
+                        экономия за год {fmt(recs.saving * 12)}
+                      </span>
                     </div>
+                    <div className="mt-5">
+                      <ForecastChart raw={fc.raw} optimized={fc.optimized} />
+                    </div>
+                    <p className="mt-4 text-xs leading-relaxed text-body">
+                      Пунктир — расходы, если ничего не менять. Зелёная линия — тот же набор
+                      подписок после применения рекомендаций: разница к концу года{' '}
+                      <span className="num font-bold text-save">{fmt(recs.saving * 12)}</span>.
+                    </p>
+                  </section>
+                ) : (
+                  <Locked flag="pro">
+                    <h2 className="font-display text-lg font-bold text-ink">Прогноз на 12 месяцев</h2>
+                    <div className="mt-5">
+                      <ForecastChart raw={fc.raw} optimized={fc.optimized} />
+                    </div>
+                  </Locked>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ЭКОНОМИЯ */}
+        {tab === 'savings' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="font-display text-2xl font-black text-ink sm:text-3xl">Экономия</h1>
+                <p className="mt-1 text-sm text-body">
+                  Конкретные шаги с суммами, а не общие советы
+                </p>
+              </div>
+              <div className="rounded-3xl border border-save-line bg-save-bg px-5 py-3 text-right">
+                <p className="text-[10px] font-black uppercase tracking-wider text-save/80">
+                  потенциал
+                </p>
+                <p className="num font-display text-xl font-black text-save">
+                  <CountUp value={recs.saving} format={(n) => fmt(n)} /> / мес
+                </p>
+              </div>
+            </div>
+
+            {hasFeature(plan, 'scenarios') ? (
+              <div className="flex flex-wrap gap-2">
+                {SCENARIOS.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex-1 rounded-2xl border border-line bg-white p-4 shadow-card"
+                  >
+                    <p className="text-xs font-black uppercase tracking-wider text-mute">
+                      {s.label}
+                    </p>
+                    <p className="num mt-1.5 font-display text-lg font-black text-ink">
+                      {fmt(scenarioSavings(recs.list, s))} / мес
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-body">{s.hint}</p>
                   </div>
                 ))}
               </div>
+            ) : (
+              <Locked flag="pro_plus">
+                <div className="flex flex-wrap gap-2">
+                  {SCENARIOS.map((s) => (
+                    <div key={s.id} className="flex-1 rounded-2xl border border-line bg-bg p-4">
+                      <p className="text-xs font-black uppercase tracking-wider text-mute">
+                        {s.label}
+                      </p>
+                      <p className="num mt-1.5 font-display text-lg font-black text-ink">
+                        {fmt(scenarioSavings(recs.list, s))} / мес
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Locked>
+            )}
+
+            {loading ? (
+              <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
+                Загружаем данные из Supabase…
+              </div>
+            ) : recs.list.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-line bg-white p-12 text-center">
+                <p className="text-sm font-bold text-ink">Рекомендаций пока нет</p>
+                <p className="mt-1.5 text-xs text-body">
+                  Добавьте подписки и отметьте, как часто ими пользуетесь, — движок подскажет, где
+                  сэкономить.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-2.5">
+                {recs.list.map((r) => {
+                  const meta = recMeta(r.type);
+                  return (
+                    <li
+                      key={r.key}
+                      className="flex flex-col gap-3 rounded-3xl border border-line bg-white p-5 shadow-card sm:flex-row sm:items-center"
+                    >
+                      <span
+                        className={`grid size-11 shrink-0 place-items-center rounded-2xl ${REC_TONE[meta.tone]}`}
+                      >
+                        <Icon name={REC_ICON[r.type]} size={20} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-mute">
+                          {meta.label}
+                        </p>
+                        <p className="mt-0.5 text-sm font-bold text-ink">{r.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-body">{r.text}</p>
+                      </div>
+                      <div className="shrink-0 text-left sm:text-right">
+                        <p className="num font-display text-base font-black text-save">
+                          {fmt(r.saving)} / мес
+                        </p>
+                        <p className="mt-1 max-w-[220px] text-[11px] leading-snug text-mute">
+                          {r.action}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         )}
 
-        {/* ВКЛАДКА 3: СЦЕНАРИИ ЭКОНОМИИ */}
-        {activeTab === 'recs' && (
-          <div className="bg-white rounded-3xl border border-[#DCDFEC] shadow-sm p-6 sm:p-8 space-y-6">
+        {/* КАЛЕНДАРЬ */}
+        {tab === 'calendar' && (
+          <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold font-['Unbounded',sans-serif]">Персональные сценарии экономии</h2>
-              <p className="text-xs text-[#6E7398] mt-1">Расчёты на основе ваших активных подписок в базе</p>
+              <h1 className="font-display text-2xl font-black text-ink sm:text-3xl">
+                Календарь списаний
+              </h1>
+              <p className="mt-1 text-sm text-body">Ближайшие 30 дней по датам платежей</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 rounded-2xl bg-[#EAEBF2]/60 border border-[#DCDFEC] space-y-3">
-                <span className="inline-block bg-[#DDF3E9] text-[#0B7F58] text-[10px] font-extrabold px-3 py-1 rounded-full uppercase">
-                  Годовая оптимизация
-                </span>
-                <h3 className="text-lg font-bold">Перевод monthly-платежей на год</h3>
-                <p className="text-xs text-[#4B5079] leading-relaxed">
-                  Ежемесячно вы платите <strong>{Math.round(monthlyOnlyTotal)} ₽</strong> по подпискам с помесячным
-                  списанием. Годовые тарифы обычно дешевле на 15–25%, то есть до{' '}
-                  <strong className="text-[#0B7F58]">{Math.round(monthlyOnlyTotal * 12 * 0.2)} ₽</strong> в год.
-                </p>
+            {loading ? (
+              <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
+                Загружаем данные из Supabase…
               </div>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    label="Списаний за 30 дней"
+                    value={String(next30.length)}
+                    hint="по активным подпискам"
+                  />
+                  <StatCard
+                    label="Сумма за 30 дней"
+                    value={fmt(monthTotal30)}
+                    hint="все ближайшие платежи"
+                  />
+                  <StatCard
+                    label="Крупнейший платёж"
+                    value={
+                      next30.length
+                        ? fmt(Math.max(...next30.map((u) => u.amount)))
+                        : '—'
+                    }
+                    hint={
+                      next30.length
+                        ? next30.reduce((a, b) => (b.amount > a.amount ? b : a)).sub.name
+                        : 'нет платежей'
+                    }
+                  />
+                </div>
 
-              <div className="p-6 rounded-2xl bg-[#EAEBF2]/60 border border-[#DCDFEC] space-y-3">
-                <span className="inline-block bg-[#FFF0D9] text-[#9A5B00] text-[10px] font-extrabold px-3 py-1 rounded-full uppercase">
-                  Контроль дублей
-                </span>
-                <h3 className="text-lg font-bold">Пересекающиеся категории</h3>
-                {duplicateCategories.length === 0 ? (
-                  <p className="text-xs text-[#4B5079] leading-relaxed">
-                    Дублей не найдено: в каждой категории у вас не больше одного активного сервиса.
-                  </p>
+                {next30.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-line bg-white p-12 text-center">
+                    <p className="text-sm font-bold text-ink">Списаний не запланировано</p>
+                    <p className="mt-1.5 text-xs text-body">
+                      У активных подписок нет даты следующего платежа — укажите день списания при
+                      добавлении.
+                    </p>
+                  </div>
                 ) : (
-                  <ul className="text-xs text-[#4B5079] leading-relaxed space-y-1">
-                    {duplicateCategories.map(stat => (
-                      <li key={stat.category}>
-                        • <strong className="text-[#171A3A]">{stat.category}</strong> — {stat.amount} ₽/мес.
-                        Проверьте, все ли сервисы здесь вам нужны.
+                  <ul className="space-y-2.5">
+                    {next30.map((u) => (
+                      <li
+                        key={`${u.sub.id}-${u.date}`}
+                        className="flex items-center gap-4 rounded-3xl border border-line bg-white p-4 shadow-card sm:p-5"
+                      >
+                        <div className="w-14 shrink-0 text-center">
+                          <p className="num font-display text-lg font-black text-ink">
+                            {new Date(u.date).getDate()}
+                          </p>
+                          <p className="text-[10px] uppercase text-mute">
+                            {new Date(u.date).toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '')}
+                          </p>
+                        </div>
+                        <span
+                          className="grid size-10 shrink-0 place-items-center rounded-xl font-mono text-xs font-bold text-white"
+                          style={{ background: categoryColor(String(u.sub.category)) }}
+                        >
+                          {String(u.sub.name)[0]}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-ink">{u.sub.name}</p>
+                          <p className="text-[11px] text-mute">
+                            {relDays(isoDate(u.date))} · {periodLabel(u.sub.period)}
+                          </p>
+                        </div>
+                        <p className="num shrink-0 font-mono text-sm font-bold text-ink">
+                          {fmt(u.amount)}
+                        </p>
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
-
-              <div className="p-6 rounded-2xl bg-[#171A3A] text-white border border-[#171A3A] space-y-3 md:col-span-2">
-                <span className="inline-block bg-[#FF5A1F] text-[#171A3A] text-[10px] font-extrabold px-3 py-1 rounded-full uppercase">
-                  Пауза вместо отмены
-                </span>
-                <h3 className="text-lg font-bold">Сервисы «на паузе» не списывают деньги</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Если подписка нужна раз в несколько месяцев, поставьте её на паузу во вкладке «Ваши подписки» —
-                  она перестанет учитываться в расходах, а запись останется в базе. Сейчас на паузе:{' '}
-                  <strong className="text-white">{subs.filter(s => s.status === 'paused').length}</strong> из {subs.length}.
-                </p>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
+      </main>
 
-        {/* Модальное окно */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-[#DCDFEC] space-y-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold font-['Unbounded',sans-serif]">Новая подписка</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-[#6E7398] hover:text-[#171A3A] font-bold text-lg">✕</button>
+      {/* нижняя навигация на мобильных */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur-md lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-current={tab === t.id ? 'page' : undefined}
+              className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition ${
+                tab === t.id ? 'text-accent' : 'text-mute'
+              }`}
+            >
+              <Icon name={t.icon} size={20} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* модальное окно добавления */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Добавить подписку"
+        >
+          <div className="slide-up max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-6 shadow-pop sm:rounded-3xl sm:p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-ink">Новая подписка</h2>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                aria-label="Закрыть"
+                className="press grid size-9 place-items-center rounded-xl border border-line text-mute transition hover:text-ink"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <p className="mt-1.5 text-xs text-body">
+              Выберите сервис из каталога — поля заполнятся сами, или впишите вручную.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {CATALOG.slice(0, 8).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pickFromCatalog(c.id)}
+                  className="press flex items-center gap-1.5 rounded-full border border-line bg-bg px-2.5 py-1.5 text-[11px] font-semibold text-body transition hover:border-accent hover:text-ink"
+                >
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ background: c.color }}
+                  />
+                  {c.short ?? c.name}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleAdd} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-name">
+                  Название сервиса
+                </label>
+                <input
+                  id="sub-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    const hit = catalogByName(e.target.value);
+                    if (hit) {
+                      setPrice(String(hit.price));
+                      setCategory(categoryLabel(hit.cat));
+                    }
+                  }}
+                  placeholder="например, Яндекс Плюс"
+                  className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
+                  required
+                />
               </div>
 
-              <form onSubmit={handleAddSub} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#4B5079] mb-1">Название сервиса</label>
+                  <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-price">
+                    Цена, ₽
+                  </label>
                   <input
-                    type="text"
-                    placeholder="например, Яндекс Плюс, Netflix"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
+                    id="sub-price"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="299"
+                    className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
                     required
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#4B5079] mb-1">Цена (₽)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="299"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#4B5079] mb-1">День списания</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="31"
-                      placeholder="15"
-                      value={paymentDayInput}
-                      onChange={(e) => setPaymentDayInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-[#4B5079] mb-1">Период списания</label>
-                  <select
-                    value={period}
-                    onChange={(e) => setPeriod(e.target.value as 'week' | 'month' | 'year')}
-                    className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
-                  >
-                    <option value="month">Раз в месяц</option>
-                    <option value="year">Раз в год</option>
-                    <option value="week">Раз в неделю</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#4B5079] mb-1">Категория</label>
+                  <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-day">
+                    День списания
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Кино, Музыка, Софт, ИИ"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-[#DCDFEC] text-sm focus:outline-none focus:border-[#FF5A1F] bg-[#EAEBF2]/50"
+                    id="sub-day"
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={day}
+                    onChange={(e) => setDay(e.target.value)}
+                    className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
                   />
                 </div>
+              </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-3 rounded-2xl border border-[#DCDFEC] text-sm font-bold text-[#4B5079] hover:bg-[#EAEBF2] transition"
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-period">
+                    Период
+                  </label>
+                  <select
+                    id="sub-period"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value as 'week' | 'month' | 'year')}
+                    className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
                   >
-                    Отмена
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 rounded-2xl bg-[#FF5A1F] text-[#171A3A] text-sm font-bold hover:bg-[#E54D15] transition shadow-md"
-                  >
-                    Сохранить в базу
-                  </button>
+                    {Object.entries(PERIODS)
+                      .filter(([k]) => k === 'week' || k === 'month' || k === 'year')
+                      .map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v.label}
+                        </option>
+                      ))}
+                  </select>
                 </div>
-              </form>
-            </div>
-          </div>
-        )}
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-usage">
+                    Как пользуетесь
+                  </label>
+                  <select
+                    id="sub-usage"
+                    value={usage}
+                    onChange={(e) => setUsage(e.target.value as 'low' | 'medium' | 'high')}
+                    className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
+                  >
+                    {USAGE_ORDER.map((u) => (
+                      <option key={u} value={u}>
+                        {USAGE[u].label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-      </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold text-body" htmlFor="sub-cat">
+                  Категория
+                </label>
+                <select
+                  id="sub-cat"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-2xl border border-line bg-bg/60 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent"
+                >
+                  {Object.values(CATEGORIES).map((c) => (
+                    <option key={c.label} value={c.label}>
+                      {c.label}
+                    </option>
+                  ))}
+                  {!Object.values(CATEGORIES).some((c) => c.label === category) && (
+                    <option value={category}>{category}</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="press flex-1 rounded-2xl border border-line py-3 text-sm font-bold text-body transition hover:bg-bg"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="press flex-1 rounded-2xl bg-accent py-3 text-sm font-bold text-white transition hover:bg-accent-deep disabled:opacity-60"
+                >
+                  {saving ? 'Сохраняем…' : 'Сохранить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
