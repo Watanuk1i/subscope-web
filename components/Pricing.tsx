@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CONFIG, PLAN_ORDER, type PlanId } from '@/lib/config';
 import { plural } from '@/lib/finance';
 import { Icon } from '@/components/Icons';
@@ -51,10 +52,15 @@ export function PricingToggle({
 export function Pricing({ onChoose, compact = false }: PricingProps) {
   const { plan, setPlan, money } = useAppStore();
   const [billing, setBilling] = useState<Billing>('month');
+  const router = useRouter();
 
   const pick = (id: PlanId) => {
-    setPlan(id);
-    onChoose?.(id);
+    if (id === 'free') {
+      setPlan(id);
+      onChoose?.(id);
+      return;
+    }
+    router.push(`/checkout?plan=${id}&billing=${billing}`);
   };
 
   return (
@@ -161,7 +167,7 @@ export function Pricing({ onChoose, compact = false }: PricingProps) {
                       : 'bg-ink text-white hover:bg-ink/90'
                 }`}
               >
-                {isCurrent ? 'Тариф активен' : id === 'free' ? 'Пользоваться бесплатно' : `Перейти на ${p.name}`}
+                {isCurrent ? 'Тариф активен' : id === 'free' ? 'Пользоваться бесплатно' : `Выбрать ${p.name}`}
               </button>
             </Reveal>
           );

@@ -111,7 +111,8 @@ export function SiteFooter() {
             </div>
             <p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-mute">
               <Icon name="shield" size={14} className="mt-px shrink-0 text-save" />
-              Мы не запрашиваем данные банковских карт и пароли от сторонних сервисов.
+              Мы не запрашиваем доступ к вашим картам и банку. Оплату тарифа SUBSCOPE принимает
+              платёжный провайдер.
             </p>
           </div>
         </div>

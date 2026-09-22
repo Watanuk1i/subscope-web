@@ -284,6 +284,10 @@ export default function SettingsPage() {
                     key={id}
                     type="button"
                     onClick={() => {
+                      if (id !== 'free') {
+                        router.push(`/checkout?plan=${id}&billing=month`);
+                        return;
+                      }
                       setPlan(id);
                       toast.ok(`Тариф ${CONFIG.plans[id].name} активирован`);
                     }}
@@ -313,8 +317,9 @@ export default function SettingsPage() {
                   <Icon name="card" size={15} className="text-accent" /> Платёжные данные
                 </p>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-body">
-                  Демо-режим: оплата не подключена, карта не требуется. Когда появится приём
-                  платежей, данные карты будет хранить платёжный провайдер, а не SUBSCOPE.
+                  Оплата тарифа проходит на странице оформления: карту или СБП принимает
+                  платёжный провайдер, SUBSCOPE не хранит платёжные данные. До подключения
+                  провайдера оформление работает в демо-режиме — деньги не списываются.
                 </p>
               </div>
 

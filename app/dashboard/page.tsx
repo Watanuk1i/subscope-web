@@ -352,18 +352,34 @@ export default function DashboardPage() {
                   {activeSubs.length} активных · всего записей {subs.length}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setModalOpen(true)}
-                className="press flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-white shadow-lift transition hover:bg-accent-deep sm:hidden"
-              >
-                <Icon name="plus" size={16} /> Добавить
-              </button>
             </div>
 
             {loading ? (
               <div className="rounded-3xl border border-line bg-white p-10 text-center text-sm text-mute">
                 Загружаем данные из Supabase…
+              </div>
+            ) : subs.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-line bg-white p-10 text-center shadow-card sm:p-14">
+                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent-soft text-accent">
+                  <Icon name="receipt" size={26} />
+                </span>
+                <h2 className="mt-5 font-display text-xl font-black text-ink sm:text-2xl">
+                  Пока нет ни одной подписки
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-body">
+                  Добавьте первую подписку — SUBSCOPE посчитает стоимость за месяц, покажет
+                  ближайшие списания и подскажет, где вы переплачиваете.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(true)}
+                  className="press mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-bold text-white shadow-lift transition hover:bg-accent-deep"
+                >
+                  <Icon name="plus" size={16} /> Добавить подписку
+                </button>
+                <p className="mt-3 text-[11px] text-mute">
+                  Можно выбрать сервис из каталога — цена подставится сама
+                </p>
               </div>
             ) : (
               <>
@@ -571,8 +587,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <ul className="space-y-2.5">
-                {filtered.map((sub) => {
+              <>
+                <ul className="space-y-2.5">
+                  {filtered.map((sub) => {
                   const analysis = calcSub(sub, recs.list);
                   const active = isActive(sub);
                   return (
@@ -662,7 +679,15 @@ export default function DashboardPage() {
                     </li>
                   );
                 })}
-              </ul>
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(true)}
+                  className="press flex w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-line bg-white/60 py-4 text-sm font-bold text-body transition hover:border-accent hover:text-accent"
+                >
+                  <Icon name="plus" size={16} /> Добавить подписку
+                </button>
+              </>
             )}
           </div>
         )}
@@ -933,6 +958,17 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* плавающая кнопка добавления на мобильных и планшетах */}
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        aria-label="Добавить подписку"
+        title="Добавить подписку"
+        className="press fixed bottom-20 right-4 z-40 grid size-14 place-items-center rounded-full bg-accent text-white shadow-pop transition hover:bg-accent-deep lg:hidden"
+      >
+        <Icon name="plus" size={22} />
+      </button>
 
       {/* нижняя навигация на мобильных */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur-md lg:hidden">
