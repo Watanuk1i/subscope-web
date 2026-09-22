@@ -72,19 +72,20 @@ export function Pricing({ onChoose, compact = false }: PricingProps) {
       <div
         className={`grid gap-5 ${
           compact ? 'md:grid-cols-3' : 'grid-cols-1 md:grid-cols-3'
-        } items-start`}
+        }`}
       >
         {PLAN_ORDER.map((id, i) => {
           const p = CONFIG.plans[id];
           const isCurrent = plan === id;
           const price = billing === 'month' ? p.price.month : p.price.year;
           const featured = id === 'pro';
+          const yearLine = billing === 'year' && price > 0;
 
           return (
             <Reveal
               key={id}
               delay={i * 90}
-              className={`relative rounded-3xl border p-6 sm:p-7 transition ${
+              className={`relative flex h-full flex-col rounded-3xl border p-6 transition sm:p-7 ${
                 featured
                   ? 'border-transparent bg-ink text-white shadow-pop'
                   : 'border-line bg-white shadow-card card-hover'
@@ -122,19 +123,27 @@ export function Pricing({ onChoose, compact = false }: PricingProps) {
                 >
                   <CountUp value={price} format={(n) => money(Math.round(n))} />
                 </span>
-                <span className={`pb-1 text-xs ${featured ? 'text-white/60' : 'text-mute'}`}>
+                <span
+                  key={billing}
+                  className={`pop pb-1 text-xs ${featured ? 'text-white/60' : 'text-mute'}`}
+                >
                   / {billing === 'month' ? 'мес' : 'год'}
                 </span>
               </div>
 
-              {billing === 'year' && price > 0 && (
-                <p className={`mt-1 text-[11px] ${featured ? 'text-white/60' : 'text-mute'}`}>
-                  ≈ {money(Math.round(price / 12))} в месяц · экономия{' '}
-                  {money(p.price.month * 12 - price)} в год
-                </p>
-              )}
-
-              <ul className="mt-6 space-y-2.5 text-xs">
+              <p
+                className={`mt-1 text-[11px] transition-opacity duration-300 ${
+                  yearLine
+                    ? featured
+                      ? 'text-white/60 opacity-100'
+                      : 'text-mute opacity-100'
+                    : 'invisible opacity-0'
+                }`}
+              >
+                ≈ {money(Math.round(p.price.year / 12))} в месяц · экономия{' '}
+                {money(p.price.month * 12 - p.price.year)} в год
+              </p>
+              <ul className="mt-6 flex-1 space-y-2.5 text-xs">
                 {p.features.map((f) => (
                   <li key={f} className="flex gap-2.5">
                     <span

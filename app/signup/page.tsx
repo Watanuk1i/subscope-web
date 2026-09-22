@@ -154,8 +154,8 @@ export default function SignupPage() {
       </div>
 
       <p className="relative mt-6 flex items-center gap-2 text-[11px] text-mute">
-        <Icon name="lock" size={13} className="text-save" />
-        Регистрация через Supabase Auth · доступ к вашим картам и банку не нужен
+        <Icon name="spark" size={13} className="text-save" />
+        Бесплатный тариф без срока · настройка за 2 минуты
       </p>
     </div>
   );

@@ -110,8 +110,8 @@ function StatCard({ label, value, hint, tone = 'default' }: {
 function Locked({ flag, children }: { flag: 'pro' | 'pro_plus'; children: ReactNode }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-line bg-white shadow-card">
-      <div className="locked-body p-6 sm:p-8">{children}</div>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/60 p-6 text-center backdrop-blur-[1px]">
+      <div className="locked-body min-h-[220px] p-6 sm:p-8">{children}</div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/60 p-8 text-center backdrop-blur-[1px] sm:p-10">
         <span className="grid size-11 place-items-center rounded-2xl bg-ink text-white">
           <Icon name="lock" size={20} />
         </span>

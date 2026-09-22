@@ -12,7 +12,7 @@ const PRODUCT = [
 const HELP = [
   { href: '/support', label: 'Поддержка и вопросы' },
   { href: '/#faq', label: 'Частые вопросы' },
-  { href: '/#security', label: 'Безопасность данных' },
+  { href: '/#value', label: 'Что вы получаете' },
   { href: '/login', label: 'Вход в аккаунт' },
 ];
 
@@ -110,9 +110,9 @@ export function SiteFooter() {
               ))}
             </div>
             <p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-mute">
-              <Icon name="shield" size={14} className="mt-px shrink-0 text-save" />
-              Мы не запрашиваем доступ к вашим картам и банку. Оплату тарифа SUBSCOPE принимает
-              платёжный провайдер.
+              <Icon name="savings" size={14} className="mt-px shrink-0 text-save" />
+              Средняя найденная экономия в несколько раз превышает цену тарифа — сервис окупается
+              первой же отменённой подпиской.
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Icon, Logo } from '@/components/Icons';
 
 const NAV = [
@@ -16,6 +17,15 @@ const NAV = [
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  const goHome = (e: React.MouseEvent) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      setOpen(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -38,7 +48,12 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:h-[72px]">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="SUBSCOPE — на главную">
+        <Link
+          href="/"
+          onClick={goHome}
+          className="flex items-center gap-2.5"
+          aria-label="SUBSCOPE — на главную"
+        >
           <Logo size={34} />
           <span className="font-display text-[15px] font-black tracking-[0.16em] text-ink">
             SUBSCOPE

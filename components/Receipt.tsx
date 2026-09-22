@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CATALOG, USAGE, USAGE_ORDER } from '@/lib/config';
+import { CATALOG } from '@/lib/config';
 import { fmt } from '@/lib/finance';
 import { CountUp } from '@/components/CountUp';
 import { Icon } from '@/components/Icons';
@@ -13,15 +13,26 @@ interface DemoSub {
   ink?: string;
   price: number;
   annual: boolean;
-  usage: 'low' | 'medium' | 'high';
+  usage: Usage;
 }
+
+type Usage = 'high' | 'medium' | 'low' | 'none';
+
+const ORDER: Usage[] = ['high', 'medium', 'low', 'none'];
+
+const USAGE_LABEL: Record<Usage, string> = {
+  high: 'часто',
+  medium: 'иногда',
+  low: 'редко',
+  none: 'не использую',
+};
 
 const START: DemoSub[] = [
   { id: 'yandex', name: 'Яндекс Плюс', color: '#FFCC00', ink: '#14172E', price: 399, annual: true, usage: 'high' },
-  { id: 'kinopoisk', name: 'Кинопоиск', color: '#FF5500', price: 299, annual: true, usage: 'low' },
+  { id: 'spotify', name: 'Spotify', color: '#1DB954', price: 299, annual: false, usage: 'high' },
   { id: 'chatgpt', name: 'ChatGPT Plus', color: '#10A37F', price: 2499, annual: false, usage: 'medium' },
-  { id: 'icloud', name: 'iCloud+ 200 ГБ', color: '#3693F5', price: 149, annual: false, usage: 'low' },
-  { id: 'xbox', name: 'Xbox Game Pass', color: '#107C10', price: 749, annual: false, usage: 'medium' },
+  { id: 'psplus', name: 'PlayStation Plus', color: '#003791', price: 699, annual: true, usage: 'medium' },
+  { id: 'vpn', name: 'VPN', color: '#2B8A8A', price: 299, annual: true, usage: 'low' },
 ];
 
 const BARS = [3, 1, 2, 1, 4, 1, 2, 3, 1, 1, 2, 4, 1, 3, 2, 1, 1, 4, 2, 1, 3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1, 4, 2, 1, 3];
@@ -40,17 +51,16 @@ export function Receipt() {
     setSubs((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
-        const i = USAGE_ORDER.indexOf(s.usage);
-        return { ...s, usage: USAGE_ORDER[(i + 1) % USAGE_ORDER.length] };
+        return { ...s, usage: ORDER[(ORDER.indexOf(s.usage) + 1) % ORDER.length] };
       }),
     );
   };
 
   const calc = useMemo(() => {
     const monthly = subs.reduce((a, s) => a + s.price, 0);
-    const wasted = subs.filter((s) => s.usage === 'low').reduce((a, s) => a + s.price, 0);
+    const wasted = subs.filter((s) => s.usage === 'none').reduce((a, s) => a + s.price, 0);
     const annual = subs
-      .filter((s) => s.usage !== 'low' && s.annual)
+      .filter((s) => s.usage !== 'none' && s.annual)
       .reduce((a, s) => a + s.price * 0.17, 0);
     const saving = Math.round(wasted + annual);
     return { monthly, wasted, saving };
@@ -107,7 +117,7 @@ export function Receipt() {
               <button
                 type="button"
                 onClick={() => cycle(s.id)}
-                title="Нажмите, чтобы отметить, как часто пользуетесь"
+                title="Нажмите, чтобы сменить частоту: часто → иногда → редко → не использую"
                 className="group flex w-full items-center gap-2.5 rounded-lg px-1 py-1 text-left transition hover:bg-ink/[0.03]"
               >
                 <span
@@ -119,13 +129,13 @@ export function Receipt() {
                 <span className="min-w-0 flex-1">
                   <span
                     className={`block truncate font-mono text-[11.5px] ${
-                      s.usage === 'low' ? 'text-ink line-through decoration-accent/60' : 'text-ink'
+                      s.usage === 'none' ? 'text-ink line-through decoration-accent/60' : 'text-ink'
                     }`}
                   >
                     {s.name}
                   </span>
                   <span className="flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-wide text-[#8d91a8]">
-                    {USAGE[s.usage].label}
+                    {USAGE_LABEL[s.usage]}
                     <Icon
                       name="edit"
                       size={9}
@@ -178,9 +188,9 @@ export function Receipt() {
         <div className="perforation my-4" />
 
         <p className="text-center font-mono text-[10px] leading-relaxed text-[#8d91a8]">
-          Нажмите на строку и отметьте,
+          Нажмите на строку: часто → иногда → редко → не использую.
           <br />
-          как часто вы пользуетесь сервисом
+          Зачёркнутое — кандидат на отмену, оно же попадает в «впустую»
         </p>
 
         <div className="barcode mt-4 justify-center">

@@ -103,8 +103,8 @@ function CheckoutInner() {
 
       <h1 className="mt-4 font-display text-2xl font-black text-ink sm:text-3xl">Оплата тарифа</h1>
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-body">
-        Вы платите только за тариф SUBSCOPE. Доступ к вашим картам, банку и счетам сервис не
-        запрашивает — данные для чека вносите вы сами.
+        Вы платите фиксированную цену тарифа SUBSCOPE — и получаете все инструменты, которые находят
+        лишние списания и помогают сэкономить больше, чем стоит подписка.
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -159,8 +159,7 @@ function CheckoutInner() {
 
           <div className="mt-5 rounded-2xl bg-bg p-4 text-[11px] leading-relaxed text-body">
             Кнопка «Оплатить» в демо-режиме не списывает деньги: платёжный провайдер ещё
-            подключается. Карта вводится на стороне провайдера — SUBSCOPE не видит и не хранит
-            её данные.
+            подключается. Чек придёт на почту, а продление можно отключить в любой момент.
           </div>
 
           <button

@@ -106,8 +106,8 @@ export default function LoginPage() {
       </div>
 
       <p className="relative mt-6 flex items-center gap-2 text-[11px] text-mute">
-        <Icon name="shield" size={13} className="text-save" />
-        Пароли проверяет Supabase Auth, мы их не храним
+        <Icon name="spark" size={13} className="text-save" />
+        Вход через Supabase Auth · можно начать и без регистрации
       </p>
     </div>
   );
