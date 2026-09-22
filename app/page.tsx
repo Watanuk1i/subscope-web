@@ -1,119 +1,167 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 
-export default function SubscopeApp() {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
-    script.async = true;
-    document.body.appendChild(script);
+const CATALOG_ITEMS = [
+  { id: 'netflix', name: 'Netflix', price: 699 },
+  { id: 'spotify', name: 'Spotify', price: 299 },
+  { id: 'youtube', name: 'YouTube Premium', price: 399 },
+  { id: 'yandex', name: 'Яндекс Плюс', price: 399 },
+  { id: 'chatgpt', name: 'ChatGPT', price: 2499 },
+  { id: 'google', name: 'Google One', price: 299 },
+];
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
+export default function SubscopeLanding() {
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
+    netflix: true,
+    spotify: true,
+    chatgpt: true,
+    yandex: true,
+  });
+  const [rareItems, setRareItems] = useState<Record<string, boolean>>({
+    netflix: true,
+  });
+
+  const toggleCheck = (id: string) => {
+    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleRare = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setRareItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const totalMonthly = CATALOG_ITEMS.reduce((acc, item) => {
+    if (checkedItems[item.id]) return acc + item.price;
+    return acc;
+  }, 0);
+
+  const rareMonthly = CATALOG_ITEMS.reduce((acc, item) => {
+    if (checkedItems[item.id] && rareItems[item.id]) return acc + item.price;
+    return acc;
+  }, 0);
 
   return (
-    <div className="min-h-screen bg-[#EDEEF5] dark:bg-[#0E1024] text-[#171A3A] dark:text-[#EEF0FF] font-['Onest',sans-serif] selection:bg-[#3F4DE8] selection:text-white">
-      {/* Шапка лендинга */}
+    <div className="min-h-screen bg-[#EDEEF5] dark:bg-[#0E1024] text-[#171A3A] dark:text-[#EEF0FF] font-sans selection:bg-[#3F4DE8] selection:text-white">
+      {/* Навигация */}
       <header className="sticky top-0 z-20 bg-[#EDEEF5]/85 dark:bg-[#0E1024]/85 backdrop-blur-md border-b border-[#DCDFEC] dark:border-[#2B3060]">
-        <div className="max-w-[1160px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-[1160px] mx-auto px-6 min-h-[64px] flex items-center justify-between">
           <a href="#top" className="flex items-center gap-2.5 font-bold tracking-wide text-base">
-            <div className="w-7 h-7 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] flex items-center justify-center text-white dark:text-[#171A3A] font-extrabold text-xs">S</div>
+            <div className="w-7 h-7 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] flex items-center justify-center text-white dark:text-[#171A3A] text-xs font-extrabold">S</div>
             SUBSCOPE
           </a>
           <nav className="hidden md:flex gap-6 text-sm font-medium text-[#4B5079] dark:text-[#B5BAE0]">
             <a href="#how" className="hover:text-[#171A3A] dark:hover:text-white transition">Как это работает</a>
-            <a href="#recs" className="hover:text-[#171A3A] dark:hover:text-white transition">Рекомендации</a>
             <a href="#pricing" className="hover:text-[#171A3A] dark:hover:text-white transition">Тарифы</a>
           </nav>
           <div className="flex items-center gap-3">
-            <a href="/dashboard" className="inline-flex items-center justify-center min-h-[36px] px-4 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A] text-sm font-semibold hover:opacity-90 transition">
+            <Link className="inline-flex items-center justify-center min-h-[36px] px-5 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A] text-sm font-semibold hover:opacity-90 transition" href="/dashboard">
               Личный кабинет
-            </a>
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Основной блок лендинга */}
+      {/* Главный блок (Hero) */}
       <main id="top">
-        <section className="py-12 md:py-20 max-w-[1160px] mx-auto px-6 grid grid-cols-1 md:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
+        <section className="py-12 md:py-20 max-w-[1160px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-12 items-start">
           <div className="space-y-6">
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-[1.1] font-['Unbounded',sans-serif]">
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-[1.1]">
               Контролируйте подписки. Сокращайте лишние расходы.
             </h1>
             <p className="text-lg text-[#4B5079] dark:text-[#B5BAE0] max-w-[54ch] leading-relaxed">
               SUBSCOPE показывает, сколько вы реально тратите на подписки, и помогает найти способы сохранить больше денег каждый месяц.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
-              <a href="/dashboard" className="inline-flex items-center justify-center min-h-[52px] px-7 rounded-full bg-[#FF5A1F] text-[#171A3A] font-bold text-base hover:opacity-95 transition shadow-lg shadow-[#FF5A1F]/20">
+              <Link className="inline-flex items-center justify-center min-h-[52px] px-8 rounded-full bg-[#FF5A1F] text-[#171A3A] font-bold text-base hover:opacity-95 transition shadow-lg shadow-[#FF5A1F]/20" href="/dashboard">
                 Рассчитать мои расходы
-              </a>
+              </Link>
             </div>
             <p className="text-sm text-[#6E7398] dark:text-[#8D93BE]">Бесплатно до 5 подписок. Банковская карта не нужна.</p>
           </div>
 
-          <div className="justify-self-end w-full max-w-[420px]">
-            <div className="bg-[#FCFCFA] text-[#171A3A] p-6 rounded-t-sm shadow-xl font-mono text-sm border-b-2 border-dashed border-[#C9CBD8] space-y-4">
-              <div className="flex justify-between items-baseline border-b border-dashed border-[#C9CBD8] pb-3"> <b className="font-bold font-sans text-base">SUBSCOPE</b>
+          {/* Интерактивный чек */}
+          <div className="w-full justify-self-end">
+            <div className="relative bg-[#FCFCFA] text-[#171A3A] p-6 rounded-t-sm shadow-2xl font-mono text-sm border-b-8 border-[#FCFCFA]">
+              <div className="flex justify-between items-baseline border-b-2 border-dashed border-[#C9CBD8] pb-3 mb-3">
+                <b className="font-bold text-base">SUBSCOPE</b>
                 <span className="text-xs text-[#65698A]">Чек ваших подписок</span>
               </div>
-              <p className="text-xs text-[#65698A] font-sans">Пример быстрого чека регулярных трат.</p>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between items-center py-1">
-                  <span>Netflix</span>
-                  <span className="font-bold">699 ₽</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span>Spotify</span>
-                  <span className="font-bold">299 ₽</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span>ChatGPT</span>
-                  <span className="font-bold">2 499 ₽</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span>Яндекс Плюс</span>
-                  <span className="font-bold">399 ₽</span>
-                </div>
+              <p className="text-xs text-[#65698A] font-sans mb-4">Отметьте сервисы, за которые платите, и те, которыми пользуетесь редко.</p>
+
+              <div className="space-y-3">
+                {CATALOG_ITEMS.map(item => {
+                  const isOn = !!checkedItems[item.id];
+                  const isRare = !!rareItems[item.id];
+                  return (
+                    <div key={item.id} className={`flex items-center gap-3 py-1.5 ${!isOn ? 'opacity-50' : ''}`}>
+                      <label className="flex items-center gap-2.5 cursor-pointer flex-1 select-none">
+                        <input
+                          type="checkbox"
+                          checked={isOn}
+                          onChange={() => toggleCheck(item.id)}
+                          className="w-4 h-4 accent-[#171A3A]"
+                        />
+                        <span className="truncate">{item.name}</span>
+                      </label>
+                      <div className="border-b border-dotted border-[#C9CBD8] flex-1 mx-2" />
+                      <span className="font-bold whitespace-nowrap">{item.price} ₽</span>
+                      <button
+                        type="button"
+                        onClick={(e) => toggleRare(item.id, e)}
+                        className={`px-2 py-0.5 text-xs rounded border transition ${isRare ? 'bg-[#FFE3D6] border-[#FF5A1F] text-[#8A2B05] font-semibold' : 'border-[#C9CBD8] text-[#65698A]'}`}
+                      >
+                        редко
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="border-t border-dashed border-[#C9CBD8] pt-3 space-y-1">
-                <div className="flex justify-between font-bold text-sm">
+
+              <div className="border-t-2 border-dashed border-[#C9CBD8] mt-5 pt-4 space-y-2 text-xs font-sans">
+                <div className="flex justify-between text-sm font-bold font-mono">
                   <span>В месяц</span>
-                  <span>3 896 ₽</span>
+                  <span>{totalMonthly} ₽</span>
                 </div>
-                <div className="flex justify-between text-xs text-[#65698A]">
+                <div className="flex justify-between font-mono text-[#65698A]">
                   <span>В год</span>
-                  <span>46 752 ₽</span>
+                  <span>{totalMonthly * 12} ₽</span>
+                </div>
+                <div className="flex justify-between text-[#0B7F58] font-mono">
+                  <span>Редко используете</span>
+                  <span>{rareMonthly} ₽/мес</span>
+                </div>
+                <div className="flex justify-between text-[#0B7F58] font-mono font-bold">
+                  <span>Можно вернуть за год</span>
+                  <span>{rareMonthly * 12} ₽</span>
                 </div>
               </div>
-              <a href="/dashboard" className="w-full mt-2 inline-flex items-center justify-center min-h-[44px] bg-[#FF5A1F] text-[#171A3A] font-bold rounded-full text-sm font-sans hover:opacity-95 transition">
-                Перейти к управлению
-              </a>
+
+              <Link className="w-full mt-5 inline-flex items-center justify-center min-h-[44px] bg-[#FF5A1F] text-[#171A3A] font-bold rounded-full text-sm font-sans hover:opacity-95 transition shadow-sm" href="/dashboard">
+                Найти возможности для экономии
+              </Link>
             </div>
           </div>
         </section>
 
-        {/* Секция «Как это работает» */}
-        <section className="py-16 md:py-24 bg-white dark:bg-[#171A38] border-y border-[#DCDFEC] dark:border-[#2B3060]" id="how">
+        {/* Секция: Как это работает */}
+        <section id="how" className="py-20 bg-white dark:bg-[#171A38] border-y border-[#DCDFEC] dark:border-[#2B3060]">
           <div className="max-w-[1160px] mx-auto px-6 space-y-12">
-            <h2 className="text-2xl md:text-3xl font-bold font-['Unbounded',sans-serif]">Как это работает</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">Как это работает</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="space-y-4">
-                <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">01</div>
+                <div className="text-4xl font-bold text-[#FF5A1F]">01</div>
                 <h3 className="text-lg font-semibold">Добавьте подписки</h3>
                 <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Выберите сервис из каталога или укажите вручную: стоимость, период и дату списания.</p>
               </div>
               <div className="space-y-4">
-                <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">02</div>
+                <div className="text-4xl font-bold text-[#FF5A1F]">02</div>
                 <h3 className="text-lg font-semibold">Получите анализ</h3>
                 <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Узнайте точную сумму трат за месяц и год, а также структуру расходов по категориям.</p>
               </div>
               <div className="space-y-4">
-                <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">03</div>
+                <div className="text-4xl font-bold text-[#FF5A1F]">03</div>
                 <h3 className="text-lg font-semibold">Сокращайте расходы</h3>
                 <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Система подскажет, где дублируются подписки или выгоднее перейти на годовой тариф.</p>
               </div>
@@ -123,9 +171,9 @@ export default function SubscopeApp() {
       </main>
 
       {/* Футер */}
-      <footer className="py-10 max-w-[1160px] mx-auto px-6 text-[#6E7398] dark:text-[#8D93BE] text-sm flex flex-col md:flex-row justify-between items-center gap-4">
-        <p>SUBSCOPE. Контроль подписок и аналитика расходов.</p>
-        <a href="/dashboard" className="text-[#3F4DE8] dark:text-[#8D98FF] font-semibold hover:underline">Открыть личный кабинет →</a>
+      <footer className="py-12 max-w-[1160px] mx-auto px-6 text-[#6E7398] dark:text-[#8D93BE] text-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <p>SUBSCOPE. Рекомендации носят информационный характер.</p>
+        <Link className="text-[#3F4DE8] dark:text-[#8E98FF] font-semibold hover:underline" href="/dashboard">Открыть личный кабинет →</Link>
       </footer>
     </div>
   );
