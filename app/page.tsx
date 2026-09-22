@@ -474,9 +474,9 @@ export default function SubscopeMasterLanding() {
             <p className="font-bold text-[#171A3A] mb-4">Продукт</p>
             <ul className="space-y-2 text-xs">
               <li><Link href="/dashboard" className="hover:text-[#FF5A1F] transition">Личный кабинет</Link></li>
-              <li><a href="#how" className="hover:text-[#FF5A1F] transition">Как это работает</a></li>
-              <li><a href="#recs" className="hover:text-[#FF5A1F] transition">Умные рекомендации</a></li>
-              <li><a href="#pricing" className="hover:text-[#FF5A1F] transition">Тарифы и цены</a></li>
+              <li><Link href="/pricing" className="hover:text-[#FF5A1F] transition">Тарифы и цены</Link></li>
+              <li><Link href="/support" className="hover:text-[#FF5A1F] transition">Служба поддержки</Link></li>
+              <li><Link href="/login" className="hover:text-[#FF5A1F] transition">Вход в систему</Link></li>
             </ul>
           </div>
 
