@@ -3,348 +3,184 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-const CATALOG_ITEMS = [
-  { id: 'netflix', name: 'Netflix', price: 699, rare: true },
-  { id: 'spotify', name: 'Spotify', price: 299, rare: false },
-  { id: 'youtube', name: 'YouTube Premium', price: 399, rare: false },
-  { id: 'yandex', name: 'Яндекс Плюс', price: 399, rare: false },
-  { id: 'chatgpt', name: 'ChatGPT', price: 2499, rare: false },
-  { id: 'google', name: 'Google One', price: 299, rare: false },
-];
-
-export default function SubscopeLanding() {
-  // Состояние интерактивного чека
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
-    netflix: true,
-    spotify: true,
-    chatgpt: true,
-    yandex: true,
-  });
-  const [rareItems, setRareItems] = useState<Record<string, boolean>>({
-    netflix: true,
-  });
-
-  // Состояние переключения тарифов на лендинге (месяц / год)
-  const [billingPeriod, setBillingPeriod] = useState<'month' | 'year'>('month');
-
-  const toggleCheck = (id: string) => {
-    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleRare = (id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setRareItems(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const totalMonthly = CATALOG_ITEMS.reduce((acc, item) => {
-    if (checkedItems[item.id]) return acc + item.price;
-    return acc;
-  }, 0);
-
-  const rareMonthly = CATALOG_ITEMS.reduce((acc, item) => {
-    if (checkedItems[item.id] && rareItems[item.id]) return acc + item.price;
-    return acc;
-  }, 0);
+export default function SubscopeModernLanding() {
+  const [activeTab, setActiveTab] = useState<'month' | 'year'>('month');
 
   return (
-    <div className="min-h-screen bg-[#EDEEF5] dark:bg-[#0E1024] text-[#171A3A] dark:text-[#EEF0FF] font-sans selection:bg-[#3F4DE8] selection:text-white scroll-smooth">
-      {/* Шапка / Навигация */}
-      <header className="sticky top-0 z-20 bg-[#EDEEF5]/88 dark:bg-[#0E1024]/88 backdrop-blur-md border-b border-[#DCDFEC] dark:border-[#2B3060]">
-        <div className="max-w-[1160px] mx-auto px-6 h-16 flex items-center justify-between">
-          <a href="#top" className="flex items-center gap-2.5 font-bold tracking-wide text-base font-['Unbounded',sans-serif]">
-            <div className="w-7 h-7 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] flex items-center justify-center text-white dark:text-[#171A3A] text-xs font-extrabold">S</div>
-            SUBSCOPE
-          </a>
-          <nav className="hidden md:flex gap-6 text-sm font-medium text-[#4B5079] dark:text-[#B5BAE0]">
-            <a href="#how" className="hover:text-[#171A3A] dark:hover:text-white transition">Как это работает</a>
-            <a href="#recs" className="hover:text-[#171A3A] dark:hover:text-white transition">Рекомендации</a>
-            <a href="#pricing" className="hover:text-[#171A3A] dark:hover:text-white transition">Тарифы</a>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+      {/* Навигация */}
+      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          <Link className="flex items-center gap-3 group" href="/">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition">
+              S
+            </div>
+            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              SUBSCOPE
+            </span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+            <a href="#features" className="hover:text-white transition">Возможности</a>
+            <a href="#analytics" className="hover:text-white transition">Аналитика</a>
+            <a href="#pricing" className="hover:text-white transition">Тарифы</a>
           </nav>
+
           <div className="flex items-center gap-3">
-            <Link className="inline-flex items-center justify-center min-h-[36px] px-5 rounded-full bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A] text-sm font-semibold hover:opacity-90 transition shadow-sm" href="/dashboard">
+            <Link className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-full text-sm font-bold transition shadow-lg shadow-indigo-600/25 active:scale-95" href="/dashboard">
               Личный кабинет
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Главный блок (Hero) + Интерактивный чек */}
-      <main id="top">
-        <section className="py-12 md:py-20 max-w-[1160px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-12 items-start">
-          <div className="space-y-6">
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-[1.1] font-['Unbounded',sans-serif]">
-              Контролируйте подписки. Сокращайте лишние расходы.
+      {/* Главный экран (Hero) с UX-акцентом на приложение */}
+      <main>
+        <section className="relative pt-12 pb-24 md:pt-20 md:pb-32 max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Фоновые градиенты свечения */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-indigo-600/15 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute top-1/3 right-10 w-[250px] h-[250px] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none" />
+
+          <div className="relative z-10 text-center max-w-3xl mx-auto space-y-6">
+            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-1.5 rounded-full text-xs font-semibold text-indigo-400 uppercase tracking-widest backdrop-blur-md">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+              Управление подписками нового поколения
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+              Контролируйте расходы на подписки{' '}
+              <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                в один клик
+              </span>
             </h1>
-            <p className="text-lg text-[#4B5079] dark:text-[#B5BAE0] max-w-[54ch] leading-relaxed">
-              SUBSCOPE показывает, сколько вы реально тратите на подписки, и помогает найти способы сохранить больше денег каждый месяц.
+
+            <p className="text-base sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+              Забудьте про неожиданные списания. SUBSCOPE объединяет все ваши регулярные платежи, анализирует траты и находит точки экономии.
             </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Link className="inline-flex items-center justify-center min-h-[52px] px-8 rounded-full bg-[#FF5A1F] text-[#171A3A] font-bold text-base hover:opacity-95 transition shadow-lg shadow-[#FF5A1F]/20" href="/dashboard">
-                Рассчитать мои расходы
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Link className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-base transition shadow-xl shadow-indigo-600/30 text-center active:scale-95" href="/dashboard">
+                Открыть дашборд бесплатно
               </Link>
-              <Link className="inline-flex items-center justify-center min-h-[52px] px-8 rounded-full border-2 border-[#C6CADF] dark:border-[#3B4180] text-[#171A3A] dark:text-[#EEF0FF] font-bold text-base hover:bg-white/50 dark:hover:bg-white/5 transition" href="/dashboard">
-                Посмотреть демо
-              </Link>
+              <a
+                href="#features"
+                className="w-full sm:w-auto bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 px-8 py-4 rounded-2xl font-bold text-base transition text-center"
+              >
+                Узнать больше
+              </a>
             </div>
-            <p className="text-sm text-[#6E7398] dark:text-[#8D93BE]">Бесплатно до 5 подписок. Банковская карта не нужна.</p>
           </div>
 
-          {/* Интерактивный чек */}
-          <div className="w-full justify-self-end">
-            <div className="relative bg-[#FCFCFA] text-[#171A3A] p-6 rounded-t-sm shadow-2xl font-mono text-sm border-b-8 border-[#FCFCFA]">
-              <div className="flex justify-between items-baseline border-b-2 border-dashed border-[#C9CBD8] pb-3 mb-3">
-                <b className="font-bold font-['Unbounded',sans-serif] text-base">SUBSCOPE</b>
-                <span className="text-xs text-[#65698A]">Чек ваших подписок</span>
+          {/* Интерактивный UI-мокап приложения (Лицо сайта) */}
+          <div className="mt-16 md:mt-24 relative max-w-5xl mx-auto">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-xl opacity-30 pointer-events-none" />
+            <div className="relative bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-8 shadow-2xl backdrop-blur-xl">
+              {/* Шапка мокапа */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6 mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Обзор расходов</h3>
+                  <p className="text-xs sm:text-sm text-slate-400">Данные синхронизированы с базой в реальном времени</p>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-xs font-semibold">
+                  <button
+                    onClick={() => setActiveTab('month')}
+                    className={`px-4 py-1.5 rounded-lg transition ${activeTab === 'month' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Месяц
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('year')}
+                    className={`px-4 py-1.5 rounded-lg transition ${activeTab === 'year' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Год
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-[#65698A] font-sans mb-4">Отметьте сервисы, за которые платите, и те, которыми пользуетесь редко.</p>
 
+              {/* Карточки внутри мокапа */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5">
+                  <p className="text-xs font-medium text-slate-400 mb-1">Расходы за период</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">{activeTab === 'month' ? '4 790 ₽' : '57 480 ₽'}</p>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5">
+                  <p className="text-xs font-medium text-slate-400 mb-1">Активных подписок</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">6 сервисов</p>
+                </div>
+                <div className="bg-indigo-950/40 border border-indigo-900/50 rounded-2xl p-5">
+                  <p className="text-xs font-medium text-indigo-300 mb-1">Потенциальная экономия</p>
+                  <p className="text-2xl sm:text-3xl font-black text-indigo-400">1 250 ₽</p>
+                </div>
+              </div>
+
+              {/* Список сервисов в мокапе */}
               <div className="space-y-3">
-                {CATALOG_ITEMS.map(item => {
-                  const isOn = !!checkedItems[item.id];
-                  const isRare = !!rareItems[item.id];
-                  return (
-                    <div key={item.id} className={`flex items-center gap-3 py-1.5 ${!isOn ? 'opacity-50' : ''}`}>
-                      <label className="flex items-center gap-2.5 cursor-pointer flex-1 select-none">
-                        <input
-                          type="checkbox"
-                          checked={isOn}
-                          onChange={() => toggleCheck(item.id)}
-                          className="w-4 h-4 accent-[#171A3A]"
-                        />
-                        <span className="truncate">{item.name}</span>
-                      </label>
-                      <div className="border-b border-dotted border-[#C9CBD8] flex-1 mx-2" />
-                      <span className="font-bold whitespace-nowrap">{item.price} ₽</span>
-                      <button
-                        type="button"
-                        onClick={(e) => toggleRare(item.id, e)}
-                        className={`px-2 py-0.5 text-xs rounded border transition ${isRare ? 'bg-[#FFE3D6] border-[#FF5A1F] text-[#8A2B05] font-semibold' : 'border-[#C9CBD8] text-[#65698A]'}`}
-                      >
-                        редко
-                      </button>
+                {[
+                  { name: 'ChatGPT Plus', category: 'ИИ-сервисы', price: '2 499 ₽', period: 'в месяц' },
+                  { name: 'Яндекс Плюс', category: 'Музыка и Кино', price: '399 ₽', period: 'в месяц' },
+                  { name: 'Google One', category: 'Облако', price: '299 ₽', period: 'в месяц' },
+                ].map((sub, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/40 border border-slate-800/60 hover:border-slate-700 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 font-bold flex items-center justify-center text-sm">
+                        {sub.name[0]}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white text-sm sm:text-base">{sub.name}</p>
+                        <p className="text-xs text-slate-400">{sub.category} • {sub.period}</p>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="border-t-2 border-dashed border-[#C9CBD8] mt-5 pt-4 space-y-2 text-xs font-sans">
-                <div className="flex justify-between text-sm font-bold font-mono">
-                  <span>В месяц</span>
-                  <span>{totalMonthly} ₽</span>
-                </div>
-                <div className="flex justify-between font-mono text-[#65698A]">
-                  <span>В год</span>
-                  <span>{totalMonthly * 12} ₽</span>
-                </div>
-                <div className="flex justify-between text-[#0B7F58] font-mono">
-                  <span>Редко используете</span>
-                  <span>{rareMonthly} ₽/мес</span>
-                </div>
-                <div className="flex justify-between text-[#0B7F58] font-mono font-bold">
-                  <span>Можно вернуть за год</span>
-                  <span>{rareMonthly * 12} ₽</span>
-                </div>
-              </div>
-
-              <Link className="w-full mt-5 inline-flex items-center justify-center min-h-[44px] bg-[#FF5A1F] text-[#171A3A] font-bold rounded-full text-sm font-sans hover:opacity-95 transition shadow-sm" href="/dashboard">
-                Найти возможности для экономии
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Секция: Деньги уходят незаметно */}
-        <section className="py-16 md:py-24 bg-white dark:bg-[#171A38] border-y border-[#DCDFEC] dark:border-[#2B3060]">
-          <div className="max-w-[1160px] mx-auto px-6 grid grid-cols-1 md:grid-cols-[0.9fr_1.1fr] gap-12 items-start">
-            <div>
-              <h2 className="text-2xl md:text-4xl font-bold font-['Unbounded',sans-serif]">Деньги уходят незаметно</h2>
-              <p className="text-[#4B5079] dark:text-[#B5BAE0] mt-4 text-base md:text-lg">Подписки оформляются за минуту, а вспоминать о них приходится месяцами. Обычно из виду пропадает пять вещей.</p>
-            </div>
-            <ul className="space-y-6">
-              <li className="border-t border-[#DCDFEC] dark:border-[#2B3060] pt-4">
-                <b className="text-lg font-semibold block">Какие подписки у вас активны</b>
-                <span className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Пробный период, семейный доступ и старая карта живут в разных местах.</span>
-              </li>
-              <li className="border-t border-[#DCDFEC] dark:border-[#2B3060] pt-4">
-                <b className="text-lg font-semibold block">Сколько вы платите</b>
-                <span className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Небольшие суммы по отдельности складываются в заметный годовой расход.</span>
-              </li>
-              <li className="border-t border-[#DCDFEC] dark:border-[#2B3060] pt-4">
-                <b className="text-lg font-semibold block">Когда списываются деньги</b>
-                <span className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Дата списания вспоминается уже после уведомления из банка.</span>
-              </li>
-              <li className="border-t border-[#DCDFEC] dark:border-[#2B3060] pt-4">
-                <b className="text-lg font-semibold block">Какие сервисы вы перестали использовать</b>
-                <span className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Подписка осталась, а привычка пользоваться ей — нет.</span>
-              </li>
-              <li className="border-t border-[#DCDFEC] dark:border-[#2B3060] pt-4">
-                <b className="text-lg font-semibold block">Какие тарифы стали дороже</b>
-                <span className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Цена выросла, а письмо об этом осталось непрочитанным.</span>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        {/* Секция: Как это работает */}
-        <section id="how" className="py-20 max-w-[1160px] mx-auto px-6 space-y-12">
-          <h2 className="text-2xl md:text-3xl font-bold font-['Unbounded',sans-serif]">Как это работает</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-4">
-              <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">01</div>
-              <h3 className="text-lg font-semibold">Добавьте подписки</h3>
-              <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Выберите сервис из каталога или введите вручную: цена, период оплаты, дата следующего списания.</p>
-            </div>
-            <div className="space-y-4">
-              <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">02</div>
-              <h3 className="text-lg font-semibold">Получите анализ расходов</h3>
-              <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Сколько уходит в месяц и в год, по каким категориям и когда ближайшие списания.</p>
-            </div>
-            <div className="space-y-4">
-              <div className="text-4xl font-bold font-['Unbounded',sans-serif] text-[#FF5A1F]">03</div>
-              <h3 className="text-lg font-semibold">Найдите возможности для экономии</h3>
-              <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm">Рекомендации с суммой в рублях: что отменить, где сменить тариф, где выгоднее платить за год.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Секция: Умные рекомендации */}
-        <section id="recs" className="py-20 bg-white dark:bg-[#171A38] border-y border-[#DCDFEC] dark:border-[#2B3060]">
-          <div className="max-w-[1160px] mx-auto px-6 space-y-12">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold font-['Unbounded',sans-serif]">Умные рекомендации</h2>
-              <p className="text-[#4B5079] dark:text-[#B5BAE0] mt-2">Не просто цифры, а конкретные шаги: что сделать и сколько это вернёт.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 border border-[#C6CADF] dark:border-[#3B4180] rounded-2xl overflow-hidden bg-[#EDEEF5] dark:bg-[#171A38]">
-              <div className="p-8 border-b md:border-r border-[#C6CADF] dark:border-[#3B4180] space-y-3">
-                <h3 className="text-lg font-semibold">Можно сэкономить</h3>
-                <p className="text-sm text-[#4B5079] dark:text-[#B5BAE0]">Годовая оплата обычно выгоднее помесячной. Покажем, у каких сервисов это имеет смысл.</p>
-                <span className="inline-block pt-2 font-bold text-[#0B7F58] dark:text-[#3ED9A2]">до 425 ₽ в месяц</span>
-              </div>
-              <div className="p-8 border-b border-[#C6CADF] dark:border-[#3B4180] space-y-3">
-                <h3 className="text-lg font-semibold">Неиспользуемая подписка</h3>
-                <p className="text-sm text-[#4B5079] dark:text-[#B5BAE0]">Netflix за 699 ₽ в месяц, а вы открывали его редко. Рассмотрите отмену.</p>
-                <span className="inline-block pt-2 font-bold text-[#0B7F58] dark:text-[#3ED9A2]">699 ₽ в месяц</span>
-              </div>
-              <div className="p-8 border-b md:border-b-0 md:border-r border-[#C6CADF] dark:border-[#3B4180] space-y-3">
-                <h3 className="text-lg font-semibold">Есть более выгодный тариф</h3>
-                <p className="text-sm text-[#4B5079] dark:text-[#B5BAE0]">Часть функций вам не нужна, а тариф с меньшим набором стоит заметно дешевле.</p>
-                <span className="inline-block pt-2 font-bold text-[#0B7F58] dark:text-[#3ED9A2]">200 ₽ в месяц</span>
-              </div>
-              <div className="p-8 space-y-3">
-                <h3 className="text-lg font-semibold">Несколько похожих сервисов</h3>
-                <p className="text-sm text-[#4B5079] dark:text-[#B5BAE0]">Две музыкальные подписки сразу: оставьте ту, которой пользуетесь чаще.</p>
-                <span className="inline-block pt-2 font-bold text-[#0B7F58] dark:text-[#3ED9A2]">299 ₽ в месяц</span>
+                    <span className="font-bold text-white text-sm sm:text-base">{sub.price}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Секция: Тарифы */}
-        <section id="pricing" className="py-20 max-w-[1160px] mx-auto px-6 space-y-10">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold font-['Unbounded',sans-serif]">Тарифы</h2>
-            <p className="text-[#4B5079] dark:text-[#B5BAE0] mt-2">Начните бесплатно. Платные тарифы открывают рекомендации по экономии, календарь списаний и прогноз.</p>
-          </div>
-
-          {/* Переключатель месяца / года */}
-          <div className="inline-flex p-1 border border-[#C6CADF] dark:border-[#3B4180] rounded-full bg-white dark:bg-[#171A38]">
-            <button
-              type="button"
-              onClick={() => setBillingPeriod('month')}
-              className={`px-5 py-2 rounded-full font-semibold text-sm transition ${billingPeriod === 'month' ? 'bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A]' : 'text-[#4B5079] dark:text-[#B5BAE0]'}`}
-            >
-              Помесячно
-            </button>
-            <button
-              type="button"
-              onClick={() => setBillingPeriod('year')}
-              className={`px-5 py-2 rounded-full font-semibold text-sm transition ${billingPeriod === 'year' ? 'bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A]' : 'text-[#4B5079] dark:text-[#B5BAE0]'}`}
-            >
-              За год
-            </button>
-          </div>
-
-          {/* Карточки тарифов */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-            {/* FREE */}
-            <div className="bg-white dark:bg-[#171A38] border border-[#DCDFEC] dark:border-[#2B3060] rounded-3xl p-8 flex flex-col justify-between">
-              <div>
-                <h3 className="text-xl font-bold font-['Unbounded',sans-serif]">FREE</h3>
-                <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm mt-1">Чтобы навести порядок</p>
-                <div className="text-3xl font-bold font-['Unbounded',sans-serif] mt-6">0 ₽</div>
-                <p className="text-xs text-[#6E7398] mt-1">Навсегда</p>
-                <ul className="mt-6 space-y-3 text-sm">
-                  <li className="flex items-center gap-2">✓ До 5 подписок</li>
-                  <li className="flex items-center gap-2">✓ Базовая статистика</li>
-                  <li className="flex items-center gap-2">✓ Месячные и годовые расходы</li>
-                </ul>
-              </div>
-              <Link className="mt-8 w-full min-h-[44px] flex items-center justify-center rounded-full border border-[#C6CADF] dark:border-[#3B4180] font-semibold text-sm hover:border-[#171A3A] dark:hover:border-white transition" href="/dashboard">
-                Начать бесплатно
-              </Link>
+        {/* Секция возможностей (Features) */}
+        <section id="features" className="py-24 bg-slate-900/40 border-t border-slate-800/80">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-16">
+            <div className="text-center max-w-2xl mx-auto space-y-4">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Создано для максимального удобства</h2>
+              <p className="text-slate-400 text-sm sm:text-base">Всё, что нужно для полного контроля над регулярными платежами в едином красивом интерфейсе.</p>
             </div>
 
-            {/* PRO */}
-            <div className="bg-[#171A3A] dark:bg-[#EEF0FF] text-white dark:text-[#171A3A] rounded-3xl p-8 flex flex-col justify-between shadow-xl">
-              <div>
-                <h3 className="text-xl font-bold font-['Unbounded',sans-serif]">PRO</h3>
-                <p className="text-white/70 dark:text-[#171A3A]/70 text-sm mt-1">Для тех, кто хочет сэкономить</p>
-                <div className="text-3xl font-bold font-['Unbounded',sans-serif] mt-6">
-                  {billingPeriod === 'month' ? '399 ₽' : '3 490 ₽'}
-                  <span className="text-sm font-normal opacity-80"> / {billingPeriod === 'month' ? 'месяц' : 'год'}</span>
-                </div>
-                <p className="text-xs opacity-70 mt-1">{billingPeriod === 'year' ? 'экономия около 27%' : 'или 3 490 ₽ в год'}</p>
-                <ul className="mt-6 space-y-3 text-sm">
-                  <li className="flex items-center gap-2">✓ Неограниченно подписок</li>
-                  <li className="flex items-center gap-2">✓ Рекомендации по экономии</li>
-                  <li className="flex items-center gap-2">✓ Календарь списаний</li>
-                  <li className="flex items-center gap-2">✓ Прогноз расходов</li>
-                </ul>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 hover:border-indigo-500/50 transition">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-xl">⚡</div>
+                <h3 className="text-xl font-bold text-white">Моментальное добавление</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">Интуитивные модальные окна позволяют фиксировать новые сервисы за секунды без лишней рутины.</p>
               </div>
-              <Link className="mt-8 w-full min-h-[44px] flex items-center justify-center rounded-full bg-[#FF5A1F] text-[#171A3A] font-bold text-sm hover:opacity-95 transition shadow-md" href="/dashboard">
-                Выбрать PRO
-              </Link>
-            </div>
 
-            {/* PRO+ */}
-            <div className="bg-white dark:bg-[#171A38] border border-[#DCDFEC] dark:border-[#2B3060] rounded-3xl p-8 flex flex-col justify-between">
-              <div>
-                <h3 className="text-xl font-bold font-['Unbounded',sans-serif]">PRO+</h3>
-                <p className="text-[#4B5079] dark:text-[#B5BAE0] text-sm mt-1">Максимум выгоды</p>
-                <div className="text-3xl font-bold font-['Unbounded',sans-serif] mt-6">
-                  {billingPeriod === 'month' ? '699 ₽' : '5 990 ₽'}
-                  <span className="text-sm font-normal text-[#6E7398]"> / {billingPeriod === 'month' ? 'месяц' : 'год'}</span>
-                </div>
-                <p className="text-xs text-[#6E7398] mt-1">{billingPeriod === 'year' ? 'максимальная скидка' : 'или 5 990 ₽ в год'}</p>
-                <ul className="mt-6 space-y-3 text-sm">
-                  <li className="flex items-center gap-2">✓ Всё из PRO</li>
-                  <li className="flex items-center gap-2">✓ AI-анализ расходов</li>
-                  <li className="flex items-center gap-2">✓ Сценарии экономии</li>
-                  <li className="flex items-center gap-2">✓ Сравнение тарифов</li>
-                </ul>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 hover:border-purple-500/50 transition">
+                <div className="w-12 h-12 rounded-2xl bg-purple-600/20 text-purple-400 flex items-center justify-center font-bold text-xl">📊</div>
+                <h3 className="text-xl font-bold text-white">Умная аналитика</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">Автоматический расчет месячных и годовых расходов, распределение по категориям и контроль бюджета.</p>
               </div>
-              <Link className="mt-8 w-full min-h-[44px] flex items-center justify-center rounded-full border border-[#C6CADF] dark:border-[#3B4180] font-semibold text-sm hover:border-[#171A3A] dark:hover:border-white transition" href="/dashboard">
-                Выбрать PRO+
-              </Link>
-            </div>
-          </div>
-        </section>
 
-        {/* Финальный призыв */}
-        <section className="py-16 max-w-[1160px] mx-auto px-6">
-          <div className="bg-[#171A3A] dark:bg-[#1F2346] text-white rounded-3xl p-8 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8">
-            <h2 className="text-2xl md:text-4xl font-bold font-['Unbounded',sans-serif] max-w-xl">Узнайте, сколько подписки стоят на самом деле</h2>
-            <Link className="inline-flex items-center justify-center min-h-[52px] px-8 rounded-full bg-[#FF5A1F] text-[#171A3A] font-bold text-base hover:opacity-95 transition whitespace-nowrap shadow-lg shadow-[#FF5A1F]/20" href="/dashboard">
-              Найти возможности для экономии
-            </Link>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 hover:border-emerald-500/50 transition">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xl">🛡️</div>
+                <h3 className="text-xl font-bold text-white">Надежная база данных</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">Безопасное хранение информации на базе Supabase с мгновенным доступом с любых ваших устройств.</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
       {/* Футер */}
-      <footer className="py-12 border-t border-[#DCDFEC] dark:border-[#2B3060] max-w-[1160px] mx-auto px-6 text-[#6E7398] dark:text-[#8D93BE] text-sm flex flex-col md:flex-row justify-between items-center gap-4">
-        <p>SUBSCOPE. Рекомендации носят информационный характер, условия проверяйте на сайтах.</p>
-        <Link className="text-[#3F4DE8] dark:text-[#8E98FF] font-semibold hover:underline" href="/dashboard">Открыть личный кабинет →</Link>
+      <footer className="border-t border-slate-800/80 py-12 text-slate-500 text-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">S</div>
+            <span className="font-bold text-slate-300">SUBSCOPE</span>
+          </div>
+          <p>© 2026 SUBSCOPE. Все права защищены.</p>
+          <Link className="text-indigo-400 hover:underline font-semibold" href="/dashboard">
+            Перейти в кабинет →
+          </Link>
+        </div>
       </footer>
     </div>
   );
